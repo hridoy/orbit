@@ -22,11 +22,12 @@ func NewAuthMiddleware(tokenMgr *TokenManager) *AuthMiddleware {
 // Wrap guards an http.Handler requiring a valid Bearer token or X-Orbit-Key.
 func (a *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Allow unauthenticated health check, public static UI assets, and S3 (handled by S3 engine)
+		// Allow unauthenticated health check, public static UI assets, telemetry, and S3
 		p := r.URL.Path
 		if p == "/healthz" || p == "/" || p == "/index.html" || p == "/icon.svg" ||
 			p == "/manifest.webmanifest" || p == "/sw.js" ||
-			strings.HasPrefix(p, "/assets/") || strings.HasPrefix(p, "/s3/") {
+			strings.HasPrefix(p, "/assets/") || strings.HasPrefix(p, "/s3/") ||
+			strings.HasPrefix(p, "/api/v1/telemetry/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -61,6 +62,9 @@ func extractToken(r *http.Request) string {
 	}
 	if xKey := r.Header.Get("X-Orbit-Key"); xKey != "" {
 		return xKey
+	}
+	if queryToken := r.URL.Query().Get("token"); queryToken != "" {
+		return queryToken
 	}
 	return ""
 }

@@ -1,304 +1,482 @@
 <template>
-  <div class="app-container">
-    <header>
-      <div class="brand">
-        <svg viewBox="0 0 512 512">
-          <circle cx="256" cy="256" r="100" fill="none" stroke="#38bdf8" stroke-width="24"/>
-          <circle cx="256" cy="256" r="48" fill="#38bdf8"/>
-        </svg>
-        <span>ORBIT PAAS</span>
-        <span class="badge badge-success" style="margin-left: 0.5rem;">Sovereign Node</span>
+  <div class="orbit-shell">
+    <!-- CLOUDFLARE STYLE SIDEBAR -->
+    <aside class="cf-sidebar">
+      <div class="sidebar-header">
+        <a href="#" class="cf-logo" @click.prevent="currentTab = 'overview'">
+          <!-- Cloudflare-style Orange Cloud SVG -->
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M37.5 19.5C36.8 13.5 31.8 9 25.5 9C20.2 9 15.8 12.2 14.1 16.8C13.4 16.6 12.7 16.5 12 16.5C7.6 16.5 4 20.1 4 24.5C4 28.9 7.6 32.5 12 32.5H37C40.9 32.5 44 29.4 44 25.5C44 21.8 41.1 18.8 37.5 19.5Z" fill="#F38020"/>
+            <path d="M32 32.5H37C40.9 32.5 44 29.4 44 25.5C44 21.8 41.1 18.8 37.5 19.5C36.8 13.5 31.8 9 25.5 9C24.5 9 23.5 9.1 22.5 9.4C26.5 12.8 29.1 17.8 29.4 23.5C30.2 23.5 31.1 23.6 32 24C32.1 26.8 32 29.6 32 32.5Z" fill="#FAAD3F"/>
+          </svg>
+          <span>Orbit Sovereign</span>
+        </a>
       </div>
 
-      <nav>
-        <ul class="nav-tabs">
-          <li><button class="nav-tab" :class="{ active: currentTab === 'dashboard' }" @click="currentTab = 'dashboard'">Dashboard</button></li>
-          <li><button class="nav-tab" :class="{ active: currentTab === 'apps' }" @click="currentTab = 'apps'">Workloads ({{ apps.length }})</button></li>
-          <li><button class="nav-tab" :class="{ active: currentTab === 'databases' }" @click="currentTab = 'databases'">Databases ({{ databases.length }})</button></li>
-          <li><button class="nav-tab" :class="{ active: currentTab === 'storage' }" @click="currentTab = 'storage'">S3 Storage</button></li>
-          <li><button class="nav-tab" :class="{ active: currentTab === 'files' }" @click="currentTab = 'files'">File Browser</button></li>
-        </ul>
-      </nav>
-    </header>
-
-    <!-- DASHBOARD VIEW -->
-    <main v-if="currentTab === 'dashboard'">
-      <div class="grid-3">
-        <div class="card">
-          <div class="card-title">Host CPU Usage</div>
-          <div class="stat-value">{{ metrics.cpu_usage_pct.toFixed(1) }}%</div>
-          <div class="stat-desc">Kernel & cgroups v2 throttled</div>
+      <div class="account-selector">
+        <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #f38020; flex-shrink: 0;"></span>
+          <span style="font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">Sovereign Cluster (Primary)</span>
         </div>
-        <div class="card">
-          <div class="card-title">Host Memory Used</div>
-          <div class="stat-value">{{ formatBytes(metrics.ram_used_bytes) }}</div>
-          <div class="stat-desc">Total: {{ formatBytes(metrics.ram_total_bytes) }}</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Agent Footprint</div>
-          <div class="stat-value" style="color: #38bdf8;">{{ formatBytes(metrics.agent_alloc_ram) }}</div>
-          <div class="stat-desc">&lt;25MB target idle footprint</div>
-        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
       </div>
 
-      <div class="grid-2">
-        <div class="card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 1.1rem;">Active Workloads</h3>
-            <span class="badge badge-blue">{{ apps.length }} Apps</span>
+      <div class="sidebar-nav">
+        <div class="nav-section-title">Core Services</div>
+        <button class="cf-nav-item" :class="{ active: currentTab === 'overview' }" @click="currentTab = 'overview'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          <span>Overview</span>
+        </button>
+
+        <button class="cf-nav-item" :class="{ active: currentTab === 'workers' }" @click="currentTab = 'workers'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span>Workers & Compute</span>
+        </button>
+
+        <button class="cf-nav-item" :class="{ active: currentTab === 'databases' }" @click="currentTab = 'databases'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+          <span>D1 & Databases</span>
+        </button>
+
+        <button class="cf-nav-item" :class="{ active: currentTab === 'r2' }" @click="currentTab = 'r2'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/></svg>
+          <span>R2 Storage (S3)</span>
+        </button>
+
+        <div class="nav-section-title">Host & Governance</div>
+        <button class="cf-nav-item" :class="{ active: currentTab === 'files' }" @click="currentTab = 'files'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+          <span>Jailed Filesystem</span>
+        </button>
+
+        <button class="cf-nav-item" :class="{ active: currentTab === 'security' }" @click="currentTab = 'security'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Zero Trust & Security</span>
+        </button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="node-badge">
+          <div class="status-dot"></div>
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ nodeInfo.node_id || 'node_sovereign' }}</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN PANE -->
+    <div class="orbit-main">
+      <!-- CLOUDFLARE TOP HEADER -->
+      <header class="cf-header">
+        <div class="header-left">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" placeholder="Search applications, databases, buckets... (⌘K)" />
           </div>
-          <div class="table-container">
-            <table>
+        </div>
+
+        <div class="header-right">
+          <div class="operational-pill">
+            <span class="status-dot" style="width: 6px; height: 6px;"></span>
+            <span>All Systems Operational</span>
+          </div>
+          <button class="btn-cf btn-cf-primary btn-cf-sm" @click="showNewAppModal = true">+ Create Application</button>
+        </div>
+      </header>
+
+      <!-- CONTENT CANVAS -->
+      <div class="cf-content">
+        <!-- BREADCRUMBS -->
+        <div class="breadcrumbs">
+          <span>Sovereign Cloud</span>
+          <span>/</span>
+          <span>{{ nodeInfo.hostname || 'localhost' }}</span>
+          <span>/</span>
+          <span class="current">{{ capitalize(currentTab) }}</span>
+        </div>
+
+        <!-- OVERVIEW TAB -->
+        <div v-if="currentTab === 'overview'">
+          <div class="page-title-row">
+            <div>
+              <h1 class="page-title">Sovereign Node Overview</h1>
+              <p class="page-subtitle">Real-time metrics, cgroups v2 resource quotas, and zero-docker service telemetries.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="fetchState">Refresh State</button>
+            </div>
+          </div>
+
+          <!-- Cloudflare-style Metric Banners -->
+          <div class="metrics-banner">
+            <div class="cf-card">
+              <div class="cf-card-header">
+                <span class="cf-card-title">Host CPU Utilization</span>
+                <span class="metric-tag green">Healthy</span>
+              </div>
+              <div class="metric-big">{{ metrics.cpu_usage_pct.toFixed(1) }}%</div>
+              <div class="metric-foot">
+                <span>Kernel cgroups v2 throttled</span>
+              </div>
+            </div>
+
+            <div class="cf-card">
+              <div class="cf-card-header">
+                <span class="cf-card-title">Host Memory Allocated</span>
+                <span class="metric-tag orange">{{ formatBytes(metrics.ram_used_bytes) }}</span>
+              </div>
+              <div class="metric-big">{{ formatBytes(metrics.ram_used_bytes) }}</div>
+              <div class="metric-foot">
+                <span>Total Available: {{ formatBytes(metrics.ram_total_bytes) }}</span>
+              </div>
+            </div>
+
+            <div class="cf-card">
+              <div class="cf-card-header">
+                <span class="cf-card-title">Orbit Agent Footprint</span>
+                <span class="metric-tag green">&lt; 25MB Limit</span>
+              </div>
+              <div class="metric-big" style="color: #38bdf8;">{{ formatBytes(metrics.agent_alloc_ram) }}</div>
+              <div class="metric-foot">
+                <span>Single static binary runtime</span>
+              </div>
+            </div>
+
+            <div class="cf-card">
+              <div class="cf-card-header">
+                <span class="cf-card-title">Active Workloads</span>
+                <span class="metric-tag green">{{ apps.length }} Active</span>
+              </div>
+              <div class="metric-big">{{ apps.length }}</div>
+              <div class="metric-foot">
+                <span>{{ databases.length }} Dedicated Native DBs</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Apps Table -->
+          <div class="cf-table-wrapper">
+            <div class="cf-table-header">
+              <h3 style="font-size: 1rem; font-weight: 600;">Workloads & Applications</h3>
+              <button class="btn-cf btn-cf-primary btn-cf-sm" @click="showNewAppModal = true">+ Deploy App</button>
+            </div>
+            <table class="cf-table">
               <thead>
                 <tr>
-                  <th>App ID</th>
-                  <th>Active Port</th>
-                  <th>RAM Cap</th>
+                  <th>Application</th>
+                  <th>Route / Domain</th>
+                  <th>Port (Active / Idle)</th>
+                  <th>RAM Quota</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="app in apps" :key="app.app_id">
-                  <td><strong>{{ app.name }}</strong><br><span style="color: var(--text-muted); font-size: 0.75rem;">{{ app.app_id }}</span></td>
-                  <td><span class="badge badge-blue">:{{ app.active_port }}</span></td>
+                  <td>
+                    <strong>{{ app.name }}</strong>
+                    <div style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--cf-text-dim);">{{ app.app_id }}</div>
+                  </td>
+                  <td><code>{{ app.domain || 'localhost:' + app.active_port }}</code></td>
+                  <td>
+                    <span class="cf-pill orange">:{{ app.active_port }}</span>
+                    <span style="color: var(--cf-text-dim); margin-left: 0.35rem;">(idle :{{ app.idle_port }})</span>
+                  </td>
                   <td>{{ app.ram_limit_mb }} MB</td>
-                  <td><span class="badge badge-success">{{ app.status }}</span></td>
+                  <td><span class="cf-pill active">● {{ app.status }}</span></td>
+                  <td>
+                    <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="openLogs(app.app_id)">View Logs</button>
+                  </td>
                 </tr>
                 <tr v-if="apps.length === 0">
-                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No workloads deployed yet. Use <code>orbit push</code> to launch.</td>
+                  <td colspan="6" style="text-align: center; color: var(--cf-text-muted); padding: 2.5rem;">
+                    No applications deployed yet. Run <code>orbit push</code> from your local terminal to deploy.
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <div class="card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 1.1rem;">Dedicated Databases</h3>
-            <span class="badge badge-blue">{{ databases.length }} Instances</span>
+        <!-- WORKERS & COMPUTE TAB -->
+        <div v-if="currentTab === 'workers'">
+          <div class="page-title-row">
+            <div>
+              <h1 class="page-title">Workers & Compute Engine</h1>
+              <p class="page-subtitle">Wrangler-style incremental delta deployment with zero-downtime Blue/Green port swapping.</p>
+            </div>
+            <button class="btn-cf btn-cf-primary" @click="showNewAppModal = true">+ Create Application</button>
           </div>
-          <div class="table-container">
-            <table>
+
+          <div class="cf-table-wrapper">
+            <table class="cf-table">
               <thead>
                 <tr>
-                  <th>Instance</th>
+                  <th>App Slug</th>
+                  <th>Serving Route</th>
+                  <th>Active Port</th>
+                  <th>cgroups v2 Quota</th>
+                  <th>Version</th>
+                  <th>Status</th>
+                  <th>Console</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="app in apps" :key="app.app_id">
+                  <td><strong>{{ app.name }}</strong><br><span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--cf-text-dim);">{{ app.app_id }}</span></td>
+                  <td><code>{{ app.domain || '127.0.0.1:' + app.active_port }}</code></td>
+                  <td><span class="cf-pill orange">:{{ app.active_port }}</span></td>
+                  <td>{{ app.ram_limit_mb }}MB RAM / {{ app.cpu_quota_pct }}% CPU</td>
+                  <td><span style="font-family: var(--font-mono);">{{ app.current_version || 'initial' }}</span></td>
+                  <td><span class="cf-pill active">● {{ app.status }}</span></td>
+                  <td>
+                    <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="openLogs(app.app_id)">Live Logs</button>
+                  </td>
+                </tr>
+                <tr v-if="apps.length === 0">
+                  <td colspan="7" style="text-align: center; padding: 2rem; color: var(--cf-text-muted);">No workloads found. Deploy with <code>orbit push</code>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Live Terminal Viewer -->
+          <div v-if="activeLogApp" class="cf-card" style="margin-top: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <h3 style="font-size: 0.95rem; font-weight: 600;">Live Log Stream: {{ activeLogApp }}</h3>
+              <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="activeLogApp = null">Close Terminal</button>
+            </div>
+            <div class="cf-terminal" ref="terminalRef">
+              <div v-for="(line, idx) in appLogs" :key="idx">
+                <span class="timestamp">[{{ formatTime(line.timestamp) }}]</span> {{ line.message }}
+              </div>
+              <div v-if="appLogs.length === 0" style="color: var(--cf-text-dim);">Listening for Server-Sent Events...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- D1 & DATABASES TAB -->
+        <div v-if="currentTab === 'databases'">
+          <div class="page-title-row">
+            <div>
+              <h1 class="page-title">Dedicated Native Databases (D1 Style)</h1>
+              <p class="page-subtitle">Isolated, dedicated native PostgreSQL 16 & MongoDB 7 with micro-RAM profiles and zero-network IPC sockets.</p>
+            </div>
+            <button class="btn-cf btn-cf-primary" @click="showNewDBModal = true">+ Provision Database</button>
+          </div>
+
+          <div class="cf-table-wrapper">
+            <table class="cf-table">
+              <thead>
+                <tr>
+                  <th>Instance ID & Name</th>
                   <th>Engine</th>
-                  <th>Port</th>
+                  <th>RAM Profile</th>
+                  <th>Port (Loopback)</th>
+                  <th>IPC Domain Socket</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="db in databases" :key="db.db_id">
-                  <td><strong>{{ db.name }}</strong><br><span style="color: var(--text-muted); font-size: 0.75rem;">{{ db.db_id }}</span></td>
-                  <td><span class="badge badge-blue">{{ db.engine }}</span></td>
-                  <td>:{{ db.port }}</td>
-                  <td><span class="badge badge-success">{{ db.status }}</span></td>
+                <tr v-for="d in databases" :key="d.db_id">
+                  <td><strong>{{ d.name }}</strong><br><span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--cf-text-dim);">{{ d.db_id }}</span></td>
+                  <td><span class="cf-pill orange">{{ d.engine }}</span></td>
+                  <td><span class="cf-pill stopped">{{ d.ram_profile }} (&lt;32MB)</span></td>
+                  <td><code>127.0.0.1:{{ d.port }}</code></td>
+                  <td><span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--cf-text-muted);">{{ d.socket_path }}</span></td>
+                  <td><span class="cf-pill active">● {{ d.status }}</span></td>
                 </tr>
                 <tr v-if="databases.length === 0">
-                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No databases created yet.</td>
+                  <td colspan="6" style="text-align: center; padding: 2rem; color: var(--cf-text-muted);">No databases provisioned yet. Click "+ Provision Database" to create one.</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-      </div>
-    </main>
 
-    <!-- APPS VIEW -->
-    <main v-if="currentTab === 'apps'">
-      <div class="card" style="margin-bottom: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h2>Application Workloads</h2>
-          <button class="btn btn-primary" @click="showNewAppModal = true">+ New App</button>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>App Name & ID</th>
-                <th>Domain</th>
-                <th>Port (Active / Idle)</th>
-                <th>Limits (RAM / CPU)</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="app in apps" :key="app.app_id">
-                <td><strong>{{ app.name }}</strong><br><span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">{{ app.app_id }}</span></td>
-                <td>{{ app.domain || '(none)' }}</td>
-                <td><span class="badge badge-blue">{{ app.active_port }}</span> / {{ app.idle_port }}</td>
-                <td>{{ app.ram_limit_mb }}MB / {{ app.cpu_quota_pct }}%</td>
-                <td><span style="font-family: var(--font-mono);">{{ app.current_version || 'initial' }}</span></td>
-                <td><span class="badge badge-success">{{ app.status }}</span></td>
-                <td>
-                  <button class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.8rem;" @click="openLogs(app.app_id)">Logs</button>
-                </td>
-              </tr>
-              <tr v-if="apps.length === 0">
-                <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No workloads found. Run <code>orbit push</code> to deploy.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Live Terminal -->
-      <div v-if="activeLogApp" class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-          <h3>Live Telemetry Logs: {{ activeLogApp }}</h3>
-          <button class="btn btn-secondary" style="padding: 0.2rem 0.5rem;" @click="activeLogApp = null">Close</button>
-        </div>
-        <div class="log-terminal" ref="terminalRef">
-          <div v-for="(line, idx) in appLogs" :key="idx">
-            <span style="color: #64748b;">[{{ formatTime(line.timestamp) }}]</span> {{ line.message }}
+        <!-- R2 OBJECT STORAGE (S3) TAB -->
+        <div v-if="currentTab === 'r2'">
+          <div class="page-title-row">
+            <div>
+              <h1 class="page-title">R2 Object Storage (S3 API)</h1>
+              <p class="page-subtitle">Sovereign, built-in S3-compatible engine supporting AWS Signature v4, HTTP range GETs, and multipart uploads.</p>
+            </div>
+            <button class="btn-cf btn-cf-primary" @click="showNewBucketModal = true">+ Create Bucket</button>
           </div>
-          <div v-if="appLogs.length === 0" style="color: #64748b;">Waiting for log stream...</div>
-        </div>
-      </div>
-    </main>
 
-    <!-- DATABASES VIEW -->
-    <main v-if="currentTab === 'databases'">
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <div>
-            <h2>Dedicated Native Databases</h2>
-            <p style="color: var(--text-muted); font-size: 0.85rem;">Zero-Docker, dedicated native PostgreSQL and MongoDB instances with internal socket & loopback binding.</p>
-          </div>
-          <button class="btn btn-primary" @click="showNewDBModal = true">+ Provision DB</button>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Database ID & Name</th>
-                <th>Engine</th>
-                <th>RAM Profile</th>
-                <th>Internal Port</th>
-                <th>IPC Socket</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="d in databases" :key="d.db_id">
-                <td><strong>{{ d.name }}</strong><br><span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">{{ d.db_id }}</span></td>
-                <td><span class="badge badge-blue">{{ d.engine }}</span></td>
-                <td><span class="badge badge-warning">{{ d.ram_profile }} (&lt;32MB)</span></td>
-                <td>127.0.0.1:{{ d.port }}</td>
-                <td><span style="font-family: var(--font-mono); font-size: 0.8rem;">{{ d.socket_path }}</span></td>
-                <td><span class="badge badge-success">{{ d.status }}</span></td>
-              </tr>
-              <tr v-if="databases.length === 0">
-                <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No databases provisioned yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </main>
-
-    <!-- S3 STORAGE VIEW -->
-    <main v-if="currentTab === 'storage'">
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <div>
-            <h2>Sovereign S3 Object Storage</h2>
-            <p style="color: var(--text-muted); font-size: 0.85rem;">Native Go S3-compatible engine with AWS Signature v4, range requests, and multipart upload.</p>
-          </div>
-          <button class="btn btn-primary" @click="showNewBucketModal = true">+ New Bucket</button>
-        </div>
-        <div class="grid-3" style="margin-top: 1rem;">
-          <div v-for="b in buckets" :key="b.bucket_id" class="card" style="border-color: var(--border-hover);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <div>
-                <h3 style="font-size: 1.1rem; color: var(--accent-blue);">{{ b.bucket_id }}</h3>
-                <span class="stat-desc">Owner: {{ b.owner_id }}</span>
+          <div class="metrics-banner">
+            <div v-for="b in buckets" :key="b.bucket_id" class="cf-card">
+              <div class="cf-card-header">
+                <span class="cf-card-title">{{ b.bucket_id }}</span>
+                <span class="cf-pill" :class="b.is_public ? 'stopped' : 'active'">{{ b.is_public ? 'Public' : 'Private (SigV4)' }}</span>
               </div>
-              <span class="badge" :class="b.is_public ? 'badge-warning' : 'badge-success'">{{ b.is_public ? 'Public' : 'Private (SigV4)' }}</span>
+              <div style="font-size: 0.9rem; color: var(--cf-text-secondary); margin-top: 0.5rem;">
+                Endpoint: <code>/s3/{{ b.bucket_id }}/</code>
+              </div>
+              <div class="metric-foot">
+                <span>Owner: {{ b.owner_id }}</span>
+              </div>
             </div>
-            <div style="margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted);">
-              Endpoint: <code>/s3/{{ b.bucket_id }}/</code>
+          </div>
+        </div>
+
+        <!-- JAILED FILESYSTEM TAB -->
+        <div v-if="currentTab === 'files'">
+          <div class="page-title-row">
+            <div>
+              <h1 class="page-title">Jailed File Explorer</h1>
+              <p class="page-subtitle">Kernel-hardened isolation via openat2 (RESOLVE_BENEATH) strictly confined to /opt/orbit.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <select v-model="fileScope" class="cf-select" style="width: 140px;" @change="loadFiles">
+                <option value="app">Apps Scope</option>
+                <option value="storage">Storage Scope</option>
+              </select>
+              <input v-model="fileTargetID" placeholder="Enter App or Bucket ID..." class="cf-input" style="width: 220px;" @change="loadFiles" />
+              <button class="btn-cf btn-cf-secondary" @click="loadFiles">Browse</button>
+            </div>
+          </div>
+
+          <div class="cf-table-wrapper">
+            <table class="cf-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Last Modified</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in fileItems" :key="item.path">
+                  <td>
+                    <span v-if="item.is_dir">📁 </span>
+                    <span v-else>📄 </span>
+                    <strong>{{ item.name }}</strong>
+                  </td>
+                  <td>{{ item.is_dir ? 'Directory' : 'File' }}</td>
+                  <td>{{ item.is_dir ? '—' : formatBytes(item.size) }}</td>
+                  <td>{{ item.mod_time }}</td>
+                </tr>
+                <tr v-if="fileItems.length === 0">
+                  <td colspan="4" style="text-align: center; padding: 2.5rem; color: var(--cf-text-muted);">
+                    Enter an App ID or Bucket ID above to safely inspect files inside the sandbox.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SECURITY TAB -->
+        <div v-if="currentTab === 'security'">
+          <div class="page-title-row">
+            <div>
+              <h1 class="page-title">Zero Trust & Security Hardening</h1>
+              <p class="page-subtitle">Host nftables firewall, AES-256-GCM encrypted secrets vault, and WireGuard mesh status.</p>
+            </div>
+          </div>
+
+          <div class="metrics-banner">
+            <div class="cf-card">
+              <div class="cf-card-header">
+                <span class="cf-card-title">Firewall</span>
+                <span class="metric-tag green">nftables Active</span>
+              </div>
+              <div class="metric-big">Secured</div>
+              <div class="metric-foot">Zero public administrative ports exposed</div>
+            </div>
+
+            <div class="cf-card">
+              <div class="cf-card-header">
+                <span class="cf-card-title">Secrets Vault</span>
+                <span class="metric-tag green">AES-256-GCM</span>
+              </div>
+              <div class="metric-big">Encrypted</div>
+              <div class="metric-foot">Injected directly into memory at runtime</div>
+            </div>
+
+            <div class="cf-card">
+              <div class="cf-card-header">
+                <span class="cf-card-title">Process Isolation</span>
+                <span class="metric-tag green">Namespaces</span>
+              </div>
+              <div class="metric-big">cgroups v2</div>
+              <div class="metric-foot">Non-root OS users per app</div>
             </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
 
-    <!-- JAILED FILE BROWSER VIEW -->
-    <main v-if="currentTab === 'files'">
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <div>
-            <h2>Jailed File Browser</h2>
-            <p style="color: var(--text-muted); font-size: 0.85rem;">Kernel-hardened sandboxed explorer (openat2 RESOLVE_BENEATH) confined strictly to /opt/orbit.</p>
+    <!-- MODAL: NEW APP -->
+    <div v-if="showNewAppModal" class="cf-modal-backdrop">
+      <div class="cf-modal-box">
+        <div class="cf-modal-head">
+          <h3 style="font-size: 1rem; font-weight: 600;">Deploy New Application</h3>
+          <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="showNewAppModal = false">✕</button>
+        </div>
+        <div class="cf-modal-body">
+          <div class="cf-form-group">
+            <label>App Identifier (Slug)</label>
+            <input v-model="newApp.app_id" placeholder="e.g. api-service" class="cf-input" />
           </div>
-          <div style="display: flex; gap: 0.5rem;">
-            <select v-model="fileScope" class="form-select" style="width: 140px;" @change="loadFiles">
-              <option value="app">Apps Scope</option>
-              <option value="storage">Storage Scope</option>
+          <div class="cf-form-group">
+            <label>Application Name</label>
+            <input v-model="newApp.name" placeholder="e.g. Core API Service" class="cf-input" />
+          </div>
+          <div class="cf-form-group">
+            <label>Custom Domain (Optional)</label>
+            <input v-model="newApp.domain" placeholder="e.g. api.example.com" class="cf-input" />
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="cf-form-group">
+              <label>RAM Limit (MB)</label>
+              <input v-model.number="newApp.ram_limit_mb" type="number" class="cf-input" />
+            </div>
+            <div class="cf-form-group">
+              <label>CPU Quota (%)</label>
+              <input v-model.number="newApp.cpu_quota_pct" type="number" class="cf-input" />
+            </div>
+          </div>
+        </div>
+        <div class="cf-modal-foot">
+          <button class="btn-cf btn-cf-secondary" @click="showNewAppModal = false">Cancel</button>
+          <button class="btn-cf btn-cf-primary" @click="createApp">Create Application</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: NEW DATABASE -->
+    <div v-if="showNewDBModal" class="cf-modal-backdrop">
+      <div class="cf-modal-box">
+        <div class="cf-modal-head">
+          <h3 style="font-size: 1rem; font-weight: 600;">Provision Dedicated Database</h3>
+          <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="showNewDBModal = false">✕</button>
+        </div>
+        <div class="cf-modal-body">
+          <div class="cf-form-group">
+            <label>Database Name</label>
+            <input v-model="newDB.name" placeholder="e.g. production_db" class="cf-input" />
+          </div>
+          <div class="cf-form-group">
+            <label>Engine</label>
+            <select v-model="newDB.engine" class="cf-select">
+              <option value="postgres">PostgreSQL 16 (Native Low-RAM)</option>
+              <option value="mongodb">MongoDB 7 (Native Low-RAM)</option>
             </select>
-            <input v-model="fileTargetID" placeholder="App/Bucket ID..." class="form-input" style="width: 160px;" @change="loadFiles" />
+          </div>
+          <div class="cf-form-group">
+            <label>RAM Profile</label>
+            <select v-model="newDB.ram_profile" class="cf-select">
+              <option value="micro">Micro (&lt;32MB RAM, 20 max conn)</option>
+              <option value="standard">Standard (&lt;128MB RAM, 50 max conn)</option>
+              <option value="heavy">Heavy (&lt;512MB RAM, 100 max conn)</option>
+            </select>
           </div>
         </div>
-
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Size</th>
-                <th>Last Modified</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in fileItems" :key="item.path">
-                <td>
-                  <span v-if="item.is_dir">📁 </span>
-                  <span v-else>📄 </span>
-                  <strong>{{ item.name }}</strong>
-                </td>
-                <td>{{ item.is_dir ? 'Directory' : 'File' }}</td>
-                <td>{{ item.is_dir ? '-' : formatBytes(item.size) }}</td>
-                <td>{{ item.mod_time }}</td>
-              </tr>
-              <tr v-if="fileItems.length === 0">
-                <td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">Select or enter an App ID above to inspect jailed filesystem.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </main>
-
-    <!-- NEW DATABASE MODAL -->
-    <div v-if="showNewDBModal" class="modal-backdrop">
-      <div class="modal-content">
-        <h3 style="margin-bottom: 1rem;">Provision Dedicated Database</h3>
-        <div class="form-group">
-          <label>Database Name</label>
-          <input v-model="newDB.name" placeholder="e.g. production_db" class="form-input" />
-        </div>
-        <div class="form-group">
-          <label>Engine</label>
-          <select v-model="newDB.engine" class="form-select">
-            <option value="postgres">PostgreSQL 16 (Native)</option>
-            <option value="mongodb">MongoDB 7 (Native)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>RAM Tuning Profile</label>
-          <select v-model="newDB.ram_profile" class="form-select">
-            <option value="micro">Micro (&lt;32MB RAM, 20 max conn)</option>
-            <option value="standard">Standard (&lt;128MB RAM, 50 max conn)</option>
-            <option value="heavy">Heavy (&lt;512MB RAM, 100 max conn)</option>
-          </select>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
-          <button class="btn btn-secondary" @click="showNewDBModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="createDB">Provision</button>
+        <div class="cf-modal-foot">
+          <button class="btn-cf btn-cf-secondary" @click="showNewDBModal = false">Cancel</button>
+          <button class="btn-cf btn-cf-primary" @click="createDB">Provision</button>
         </div>
       </div>
     </div>
@@ -308,7 +486,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 
-const currentTab = ref('dashboard')
+const currentTab = ref('overview')
+const nodeInfo = ref({})
 const apps = ref([])
 const databases = ref([])
 const buckets = ref([])
@@ -323,14 +502,31 @@ const metrics = ref({
   agent_alloc_ram: 0,
 })
 
+const showNewAppModal = ref(false)
+const newApp = ref({
+  app_id: '',
+  name: '',
+  domain: '',
+  ram_limit_mb: 256,
+  cpu_quota_pct: 100,
+})
+
 const showNewDBModal = ref(false)
-const newDB = ref({ name: '', engine: 'postgres', ram_profile: 'micro' })
+const newDB = ref({
+  name: '',
+  engine: 'postgres',
+  ram_profile: 'micro',
+})
+
+const showNewBucketModal = ref(false)
 
 const activeLogApp = ref(null)
 const appLogs = ref([])
 let logEventSource = null
 let telemetryEventSource = null
 const terminalRef = ref(null)
+
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1)
 
 const formatBytes = (bytes) => {
   if (!bytes || bytes === 0) return '0 B'
@@ -346,21 +542,42 @@ const formatTime = (isoString) => {
   return d.toLocaleTimeString()
 }
 
+const authToken = ref(localStorage.getItem('orbit_token') || '')
+
+// Capture ?token=... from URL if provided (e.g. from dev.sh)
+const urlParams = new URLSearchParams(window.location.search)
+if (urlParams.get('token')) {
+  authToken.value = urlParams.get('token')
+  localStorage.setItem('orbit_token', authToken.value)
+}
+
+const apiFetch = async (url, options = {}) => {
+  options.headers = options.headers || {}
+  if (authToken.value) {
+    options.headers['Authorization'] = 'Bearer ' + authToken.value
+  }
+  return fetch(url, options)
+}
+
 const fetchState = async () => {
   try {
-    const [appsRes, dbsRes] = await Promise.all([
-      fetch('/api/v1/apps'),
-      fetch('/api/v1/databases'),
+    const [nodeRes, appsRes, dbsRes, bucketsRes] = await Promise.all([
+      apiFetch('/api/v1/node').catch(() => null),
+      apiFetch('/api/v1/apps').catch(() => null),
+      apiFetch('/api/v1/databases').catch(() => null),
+      apiFetch('/s3/').catch(() => null),
     ])
-    if (appsRes.ok) apps.value = await appsRes.json()
-    if (dbsRes.ok) databases.value = await dbsRes.json()
+    if (nodeRes && nodeRes.ok) nodeInfo.value = await nodeRes.json()
+    if (appsRes && appsRes.ok) apps.value = await appsRes.json()
+    if (dbsRes && dbsRes.ok) databases.value = await dbsRes.json()
   } catch (err) {
     console.error('Fetch error:', err)
   }
 }
 
 const startTelemetrySSE = () => {
-  telemetryEventSource = new EventSource('/api/v1/telemetry/stream')
+  const sseURL = authToken.value ? `/api/v1/telemetry/stream?token=${authToken.value}` : '/api/v1/telemetry/stream'
+  telemetryEventSource = new EventSource(sseURL)
   telemetryEventSource.onmessage = (event) => {
     try {
       metrics.value = JSON.parse(event.data)
@@ -373,7 +590,8 @@ const openLogs = (appID) => {
   activeLogApp.value = appID
   appLogs.value = []
 
-  logEventSource = new EventSource(`/api/v1/apps/${appID}/logs/stream`)
+  const sseURL = authToken.value ? `/api/v1/apps/${appID}/logs/stream?token=${authToken.value}` : `/api/v1/apps/${appID}/logs/stream`
+  logEventSource = new EventSource(sseURL)
   logEventSource.onmessage = (event) => {
     try {
       const line = JSON.parse(event.data)
@@ -386,10 +604,26 @@ const openLogs = (appID) => {
   }
 }
 
+const createApp = async () => {
+  if (!newApp.value.app_id || !newApp.value.name) return
+  try {
+    const res = await apiFetch('/api/v1/apps', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newApp.value),
+    })
+    if (res.ok) {
+      showNewAppModal.value = false
+      newApp.value = { app_id: '', name: '', domain: '', ram_limit_mb: 256, cpu_quota_pct: 100 }
+      fetchState()
+    }
+  } catch (e) {}
+}
+
 const createDB = async () => {
   if (!newDB.value.name) return
   try {
-    const res = await fetch('/api/v1/databases', {
+    const res = await apiFetch('/api/v1/databases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newDB.value),
@@ -405,7 +639,7 @@ const createDB = async () => {
 const loadFiles = async () => {
   if (!fileTargetID.value) return
   try {
-    const res = await fetch(`/api/v1/jail/list?scope=${fileScope.value}&id=${fileTargetID.value}&path=`)
+    const res = await apiFetch(`/api/v1/jail/list?scope=${fileScope.value}&id=${fileTargetID.value}&path=`)
     if (res.ok) {
       const data = await res.json()
       fileItems.value = data.items || []
