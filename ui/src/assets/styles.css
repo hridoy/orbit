@@ -1,18 +1,61 @@
 /* ==========================================================================
    Orbit Sovereign Cloud — Cloudflare Dashboard Design System
+   DEFAULT THEME: CLOUDFLARE LIGHT MODE
    Pure Native CSS — 100% Zero-Tailwind, Zero-Bootstrap
    ========================================================================== */
 
 :root {
   /* Cloudflare Brand Colors */
   --cf-orange: #f38020;
-  --cf-orange-hover: #fa6400;
-  --cf-orange-subtle: rgba(243, 128, 32, 0.12);
+  --cf-orange-hover: #e56800;
+  --cf-orange-subtle: rgba(243, 128, 32, 0.08);
+  --cf-orange-border: rgba(243, 128, 32, 0.3);
   --cf-blue: #0051c3;
   --cf-blue-hover: #0070f3;
-  --cf-blue-subtle: rgba(0, 81, 195, 0.15);
+  --cf-blue-subtle: rgba(0, 81, 195, 0.08);
 
-  /* Cloudflare Dark Theme Canvas */
+  /* Cloudflare LIGHT THEME Canvas (DEFAULT) */
+  --cf-bg-canvas: #f4f5f8;
+  --cf-bg-sidebar: #ffffff;
+  --cf-bg-header: #ffffff;
+  --cf-bg-card: #ffffff;
+  --cf-bg-card-hover: #fcfcfd;
+  --cf-bg-input: #ffffff;
+  --cf-bg-secondary: #f8fafc;
+  --cf-bg-tertiary: #f1f5f9;
+
+  /* Borders & Dividers */
+  --cf-border: #e2e8f0;
+  --cf-border-subtle: #f1f5f9;
+  --cf-border-hover: #cbd5e1;
+  --cf-border-focus: #f38020;
+
+  /* Typography */
+  --cf-text-primary: #0f172a;
+  --cf-text-secondary: #334155;
+  --cf-text-muted: #64748b;
+  --cf-text-dim: #94a3b8;
+
+  /* Status Colors */
+  --cf-success: #059669;
+  --cf-success-bg: #ecfdf5;
+  --cf-warning: #d97706;
+  --cf-warning-bg: #fffbeb;
+  --cf-danger: #dc2626;
+  --cf-danger-bg: #fef2f2;
+
+  /* Elevation Shadows */
+  --cf-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --cf-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --cf-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+
+  /* Fonts */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Optional Dark Mode (via data-theme="dark") */
+[data-theme="dark"] {
   --cf-bg-canvas: #090b10;
   --cf-bg-sidebar: #0f131c;
   --cf-bg-header: #0f131c;
@@ -20,20 +63,18 @@
   --cf-bg-card-hover: #1b2232;
   --cf-bg-input: #090c13;
   --cf-bg-secondary: #1e2638;
+  --cf-bg-tertiary: #192132;
 
-  /* Borders & Dividers */
   --cf-border: #222b3d;
   --cf-border-subtle: rgba(255, 255, 255, 0.06);
   --cf-border-hover: #3b4863;
   --cf-border-focus: #f38020;
 
-  /* Typography */
   --cf-text-primary: #f8fafc;
   --cf-text-secondary: #cbd5e1;
   --cf-text-muted: #8492a6;
   --cf-text-dim: #54647a;
 
-  /* Status Colors */
   --cf-success: #10b981;
   --cf-success-bg: rgba(16, 185, 129, 0.12);
   --cf-warning: #f59e0b;
@@ -41,9 +82,9 @@
   --cf-danger: #ef4444;
   --cf-danger-bg: rgba(239, 68, 68, 0.12);
 
-  /* Fonts */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --cf-shadow-sm: none;
+  --cf-shadow: none;
+  --cf-shadow-md: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -64,7 +105,7 @@ body {
 }
 
 /* ==========================================================================
-   App Shell Layout (Sidebar + Header + Canvas)
+   Shell Layout
    ========================================================================== */
 
 .orbit-shell {
@@ -115,9 +156,9 @@ body {
 }
 
 .account-selector {
-  margin: 1rem 1rem 0.5rem 1rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--cf-bg-card);
+  margin: 0.85rem 0.85rem 0.4rem 0.85rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--cf-bg-secondary);
   border: 1px solid var(--cf-border);
   border-radius: 6px;
   display: flex;
@@ -126,10 +167,12 @@ body {
   font-size: 0.85rem;
   color: var(--cf-text-secondary);
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .account-selector:hover {
   border-color: var(--cf-border-hover);
+  background: var(--cf-bg-tertiary);
 }
 
 .sidebar-nav {
@@ -141,7 +184,7 @@ body {
 .nav-section-title {
   font-size: 0.72rem;
   text-transform: uppercase;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--cf-text-dim);
   padding: 0.75rem 0.75rem 0.35rem;
   letter-spacing: 0.06em;
@@ -173,7 +216,7 @@ body {
 }
 
 .cf-nav-item:hover {
-  background-color: var(--cf-bg-card-hover);
+  background-color: var(--cf-bg-secondary);
   color: var(--cf-text-primary);
 }
 
@@ -192,7 +235,7 @@ body {
 }
 
 .sidebar-footer {
-  padding: 1rem;
+  padding: 0.85rem;
   border-top: 1px solid var(--cf-border);
   font-size: 0.8rem;
 }
@@ -201,8 +244,8 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  background: var(--cf-bg-canvas);
+  padding: 0.45rem 0.65rem;
+  background: var(--cf-bg-secondary);
   border: 1px solid var(--cf-border);
   border-radius: 6px;
   font-family: var(--font-mono);
@@ -215,12 +258,12 @@ body {
   height: 8px;
   border-radius: 50%;
   background-color: var(--cf-success);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 6px rgba(5, 150, 105, 0.4);
   flex-shrink: 0;
 }
 
 /* ==========================================================================
-   Main Content Area
+   Header Bar
    ========================================================================== */
 
 .orbit-main {
@@ -230,7 +273,6 @@ body {
   min-width: 0;
 }
 
-/* Top Header */
 .cf-header {
   height: 60px;
   background-color: var(--cf-bg-header);
@@ -242,6 +284,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 30;
+  box-shadow: var(--cf-shadow-sm);
 }
 
 .header-left {
@@ -257,12 +300,14 @@ body {
   background-color: var(--cf-bg-input);
   border: 1px solid var(--cf-border);
   border-radius: 6px;
-  padding: 0.4rem 0.75rem;
-  width: 320px;
+  padding: 0.45rem 0.75rem;
+  width: 340px;
+  transition: all 0.15s;
 }
 
 .search-box:focus-within {
   border-color: var(--cf-orange);
+  box-shadow: 0 0 0 2px var(--cf-orange-subtle);
 }
 
 .search-box input {
@@ -283,7 +328,7 @@ body {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .operational-pill {
@@ -293,12 +338,36 @@ body {
   font-size: 0.8rem;
   color: var(--cf-success);
   background: var(--cf-success-bg);
-  padding: 0.25rem 0.65rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 100px;
   font-weight: 500;
+  border: 1px solid rgba(5, 150, 105, 0.2);
 }
 
-/* Content Canvas */
+.theme-toggle-btn {
+  background: var(--cf-bg-secondary);
+  border: 1px solid var(--cf-border);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  color: var(--cf-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--cf-bg-tertiary);
+  border-color: var(--cf-border-hover);
+  color: var(--cf-text-primary);
+}
+
+/* ==========================================================================
+   Content Canvas
+   ========================================================================== */
+
 .cf-content {
   flex: 1;
   padding: 2rem;
@@ -318,7 +387,7 @@ body {
 
 .breadcrumbs span.current {
   color: var(--cf-text-primary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .page-title-row {
@@ -342,7 +411,7 @@ body {
 }
 
 /* ==========================================================================
-   Cloudflare Card & Metric Grid
+   Cloudflare Cards & Metric Grid
    ========================================================================== */
 
 .metrics-banner {
@@ -358,11 +427,13 @@ body {
   border-radius: 8px;
   padding: 1.25rem;
   position: relative;
-  transition: border-color 0.15s ease;
+  box-shadow: var(--cf-shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .cf-card:hover {
   border-color: var(--cf-border-hover);
+  box-shadow: var(--cf-shadow);
 }
 
 .cf-card-header {
@@ -373,11 +444,11 @@ body {
 }
 
 .cf-card-title {
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--cf-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .metric-big {
@@ -401,14 +472,14 @@ body {
 .metric-tag {
   display: inline-flex;
   align-items: center;
-  padding: 0.15rem 0.45rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-weight: 600;
   font-size: 0.75rem;
 }
 
-.metric-tag.green { background: var(--cf-success-bg); color: var(--cf-success); }
-.metric-tag.orange { background: var(--cf-orange-subtle); color: var(--cf-orange); }
+.metric-tag.green { background: var(--cf-success-bg); color: var(--cf-success); border: 1px solid rgba(5, 150, 105, 0.2); }
+.metric-tag.orange { background: var(--cf-orange-subtle); color: var(--cf-orange); border: 1px solid var(--cf-orange-border); }
 
 /* ==========================================================================
    Cloudflare Tables & Lists
@@ -420,6 +491,7 @@ body {
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 2rem;
+  box-shadow: var(--cf-shadow-sm);
 }
 
 .cf-table-header {
@@ -428,6 +500,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: var(--cf-bg-card);
 }
 
 .cf-table {
@@ -455,15 +528,26 @@ body {
 }
 
 .cf-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--cf-bg-card-hover);
 }
 
 .cf-table tr:last-child td {
   border-bottom: none;
 }
 
+/* Code badges in tables */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: var(--cf-bg-secondary);
+  color: var(--cf-text-primary);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--cf-border);
+}
+
 /* ==========================================================================
-   Cloudflare Buttons & Badges
+   Buttons & Status Pills
    ========================================================================== */
 
 .btn-cf {
@@ -483,7 +567,9 @@ body {
 
 .btn-cf-primary {
   background-color: var(--cf-orange);
-  color: #fff;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(243, 128, 32, 0.2);
 }
 
 .btn-cf-primary:hover {
@@ -491,43 +577,57 @@ body {
 }
 
 .btn-cf-secondary {
-  background-color: var(--cf-bg-secondary);
+  background-color: var(--cf-bg-input);
   border-color: var(--cf-border);
   color: var(--cf-text-primary);
 }
 
 .btn-cf-secondary:hover {
   border-color: var(--cf-border-hover);
-  background-color: var(--cf-bg-card-hover);
+  background-color: var(--cf-bg-secondary);
 }
 
 .btn-cf-sm {
-  padding: 0.25rem 0.6rem;
-  font-size: 0.78rem;
-  border-radius: 4px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  border-radius: 5px;
 }
 
 .cf-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.2rem 0.6rem;
+  padding: 0.2rem 0.65rem;
   border-radius: 100px;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
-.cf-pill.active { background: var(--cf-success-bg); color: var(--cf-success); }
-.cf-pill.stopped { background: rgba(148, 163, 184, 0.12); color: var(--cf-text-muted); }
-.cf-pill.orange { background: var(--cf-orange-subtle); color: var(--cf-orange); }
+.cf-pill.active {
+  background: var(--cf-success-bg);
+  color: var(--cf-success);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+.cf-pill.stopped {
+  background: var(--cf-bg-secondary);
+  color: var(--cf-text-muted);
+  border: 1px solid var(--cf-border);
+}
+
+.cf-pill.orange {
+  background: var(--cf-orange-subtle);
+  color: var(--cf-orange);
+  border: 1px solid var(--cf-orange-border);
+}
 
 /* ==========================================================================
-   Cloudflare Monospace Log Terminal
+   Terminal Viewer (Monospace)
    ========================================================================== */
 
 .cf-terminal {
-  background-color: #06080d;
-  border: 1px solid var(--cf-border);
+  background-color: #0f172a;
+  border: 1px solid #1e293b;
   border-radius: 8px;
   padding: 1rem 1.25rem;
   font-family: var(--font-mono);
@@ -539,17 +639,17 @@ body {
 }
 
 .cf-terminal .timestamp {
-  color: var(--cf-text-dim);
+  color: #64748b;
 }
 
 /* ==========================================================================
-   Modals & Drawers
+   Modals
    ========================================================================== */
 
 .cf-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -559,12 +659,12 @@ body {
 }
 
 .cf-modal-box {
-  background: var(--cf-bg-sidebar);
+  background: var(--cf-bg-card);
   border: 1px solid var(--cf-border);
   border-radius: 10px;
   width: 100%;
   max-width: 520px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   overflow: hidden;
 }
 
@@ -574,6 +674,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: var(--cf-bg-secondary);
 }
 
 .cf-modal-body {
@@ -582,7 +683,7 @@ body {
 
 .cf-modal-foot {
   padding: 1rem 1.5rem;
-  background: var(--cf-bg-card);
+  background: var(--cf-bg-secondary);
   border-top: 1px solid var(--cf-border);
   display: flex;
   justify-content: flex-end;
@@ -596,7 +697,7 @@ body {
 .cf-form-group label {
   display: block;
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--cf-text-secondary);
   margin-bottom: 0.4rem;
 }
@@ -610,14 +711,18 @@ body {
   color: var(--cf-text-primary);
   font-size: 0.88rem;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .cf-input:focus, .cf-select:focus {
   border-color: var(--cf-orange);
+  box-shadow: 0 0 0 2px var(--cf-orange-subtle);
 }
 
-/* Responsive */
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
 @media (max-width: 900px) {
   .cf-sidebar { width: 68px; }
   .cf-sidebar .cf-logo span,

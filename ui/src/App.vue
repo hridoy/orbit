@@ -79,6 +79,10 @@
             <span class="status-dot" style="width: 6px; height: 6px;"></span>
             <span>All Systems Operational</span>
           </div>
+          <button class="theme-toggle-btn" @click="toggleTheme" :title="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+            <span v-if="isDarkMode">☀️ Light</span>
+            <span v-else>🌙 Dark</span>
+          </button>
           <button class="btn-cf btn-cf-primary btn-cf-sm" @click="showNewAppModal = true">+ Create Application</button>
         </div>
       </header>
@@ -647,7 +651,28 @@ const loadFiles = async () => {
   } catch (e) {}
 }
 
+const isDarkMode = ref(false)
+
+const toggleTheme = () => {
+  isDarkMode.value = !isDarkMode.value
+  if (isDarkMode.value) {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    localStorage.setItem('orbit_theme', 'dark')
+  } else {
+    document.documentElement.removeAttribute('data-theme')
+    localStorage.setItem('orbit_theme', 'light')
+  }
+}
+
 onMounted(() => {
+  const saved = localStorage.getItem('orbit_theme')
+  if (saved === 'dark') {
+    isDarkMode.value = true
+    document.documentElement.setAttribute('data-theme', 'dark')
+  } else {
+    isDarkMode.value = false
+    document.documentElement.removeAttribute('data-theme')
+  }
   fetchState()
   startTelemetrySSE()
   setInterval(fetchState, 5000)
