@@ -119,7 +119,7 @@
               </div>
               <div class="metric-big">{{ metrics.cpu_usage_pct.toFixed(1) }}%</div>
               <div class="metric-foot">
-                <span>Kernel cgroups v2 throttled</span>
+                <span>Kernel native isolation</span>
               </div>
             </div>
 
@@ -137,7 +137,7 @@
             <div class="cf-card">
               <div class="cf-card-header">
                 <span class="cf-card-title">Orbit Agent Footprint</span>
-                <span class="metric-tag green">&lt; 25MB Limit</span>
+                <span class="metric-tag green">Ultra-Low Overhead</span>
               </div>
               <div class="metric-big" style="color: #38bdf8;">{{ formatBytes(metrics.agent_alloc_ram) }}</div>
               <div class="metric-foot">
@@ -169,7 +169,7 @@
                   <th>Application</th>
                   <th>Route / Domain</th>
                   <th>Port (Active / Idle)</th>
-                  <th>RAM Quota</th>
+                  <th>Allocated RAM</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -218,7 +218,7 @@
                   <th>App Slug</th>
                   <th>Serving Route</th>
                   <th>Active Port</th>
-                  <th>cgroups v2 Quota</th>
+                  <th>Resources</th>
                   <th>Version</th>
                   <th>Status</th>
                   <th>Console</th>
@@ -262,10 +262,10 @@
         <div v-if="currentTab === 'databases'">
           <div class="page-title-row">
             <div>
-              <h1 class="page-title">Dedicated Native Databases (D1 Style)</h1>
-              <p class="page-subtitle">Isolated, dedicated native PostgreSQL 16 & MongoDB 7 with micro-RAM profiles and zero-network IPC sockets.</p>
+              <h1 class="page-title">Dedicated Native Databases (Dokploy Style)</h1>
+              <p class="page-subtitle">Sovereign, dedicated native instances (PostgreSQL, MySQL, MariaDB, MongoDB, Redis, LibSQL) with auto-tuned low-RAM profiles and zero-network IPC domain sockets.</p>
             </div>
-            <button class="btn-cf btn-cf-primary" @click="showNewDBModal = true">+ Provision Database</button>
+            <button class="btn-cf btn-cf-primary" @click="openCreateDBModal">+ Provision Database</button>
           </div>
 
           <div class="cf-table-wrapper">
@@ -278,22 +278,58 @@
                   <th>Port (Loopback)</th>
                   <th>IPC Domain Socket</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="d in databases" :key="d.db_id">
-                  <td><strong>{{ d.name }}</strong><br><span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--cf-text-dim);">{{ d.db_id }}</span></td>
-                  <td><span class="cf-pill orange">{{ d.engine }}</span></td>
-                  <td><span class="cf-pill stopped">{{ d.ram_profile }} (&lt;32MB)</span></td>
+                  <td>
+                    <strong>{{ d.name }}</strong><br>
+                    <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--cf-text-dim);">{{ d.db_id }}</span>
+                  </td>
+                  <td>
+                    <span class="cf-pill" :class="'badge-' + d.engine">
+                      {{ getEngineIcon(d.engine) }} {{ getEngineLabel(d.engine) }}
+                    </span>
+                  </td>
+                  <td><span class="cf-pill stopped">{{ d.ram_profile }}</span></td>
                   <td><code>127.0.0.1:{{ d.port }}</code></td>
-                  <td><span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--cf-text-muted);">{{ d.socket_path }}</span></td>
-                  <td><span class="cf-pill active">● {{ d.status }}</span></td>
+                  <td><span style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--cf-text-muted);">{{ d.socket_path }}</span></td>
+                  <td>
+                    <span class="cf-pill" :class="d.status === 'running' ? 'active' : 'stopped'">
+                      ● {{ d.status }}
+                    </span>
+                  </td>
+                  <td>
+                    <div style="display: flex; gap: 0.35rem; align-items: center;">
+                      <button class="btn-cf btn-cf-primary btn-cf-sm" @click="viewDBConnection(d.db_id)">Connect</button>
+                      <button v-if="d.status !== 'running'" class="btn-cf btn-cf-secondary btn-cf-sm" @click="startDB(d.db_id)">Start</button>
+                      <button v-else class="btn-cf btn-cf-secondary btn-cf-sm" @click="stopDB(d.db_id)">Stop</button>
+                      <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="restartDB(d.db_id)" title="Restart">↺</button>
+                      <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="openDBLogs(d.db_id)" title="View Logs">Logs</button>
+                      <button class="btn-cf btn-cf-secondary btn-cf-sm" style="color: #dc2626;" @click="deleteDB(d.db_id)" title="Delete Database">✕</button>
+                    </div>
+                  </td>
                 </tr>
                 <tr v-if="databases.length === 0">
-                  <td colspan="6" style="text-align: center; padding: 2rem; color: var(--cf-text-muted);">No databases provisioned yet. Click "+ Provision Database" to create one.</td>
+                  <td colspan="7" style="text-align: center; padding: 2.5rem; color: var(--cf-text-muted);">
+                    No databases provisioned yet. Click "+ Provision Database" to deploy a dedicated instance.
+                  </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Live Database Logs Viewer -->
+          <div v-if="activeLogDB" class="cf-card" style="margin-top: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <h3 style="font-size: 0.95rem; font-weight: 600;">Database Logs: {{ activeLogDB }}</h3>
+              <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="activeLogDB = null">Close Logs</button>
+            </div>
+            <div class="cf-terminal">
+              <div v-for="(line, idx) in dbLogs" :key="idx">{{ line }}</div>
+              <div v-if="dbLogs.length === 0" style="color: var(--cf-text-dim);">No log output recorded yet for this instance.</div>
+            </div>
           </div>
         </div>
 
@@ -434,12 +470,12 @@
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
             <div class="cf-form-group">
-              <label>RAM Limit (MB)</label>
-              <input v-model.number="newApp.ram_limit_mb" type="number" class="cf-input" />
+              <label>RAM Allocation (MB) — 0 for Unlimited</label>
+              <input v-model.number="newApp.ram_limit_mb" type="number" class="cf-input" placeholder="0 = Unlimited" />
             </div>
             <div class="cf-form-group">
-              <label>CPU Quota (%)</label>
-              <input v-model.number="newApp.cpu_quota_pct" type="number" class="cf-input" />
+              <label>CPU Allocation (%) — 100% full core</label>
+              <input v-model.number="newApp.cpu_quota_pct" type="number" class="cf-input" placeholder="100" />
             </div>
           </div>
         </div>
@@ -450,37 +486,123 @@
       </div>
     </div>
 
-    <!-- MODAL: NEW DATABASE -->
+    <!-- MODAL: NEW DATABASE (DOKPLOY-STYLE ENGINE SELECTOR) -->
     <div v-if="showNewDBModal" class="cf-modal-backdrop">
-      <div class="cf-modal-box">
+      <div class="cf-modal-box" style="max-width: 680px;">
         <div class="cf-modal-head">
-          <h3 style="font-size: 1rem; font-weight: 600;">Provision Dedicated Database</h3>
+          <h3 style="font-size: 1.05rem; font-weight: 600;">Provision Dedicated Database</h3>
           <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="showNewDBModal = false">✕</button>
         </div>
         <div class="cf-modal-body">
           <div class="cf-form-group">
+            <label style="font-weight: 600;">Select Database Engine (Dokploy Compatible)</label>
+            <div class="engine-grid">
+              <div 
+                v-for="eng in dbEngines" 
+                :key="eng.id" 
+                class="engine-card" 
+                :class="{ selected: newDB.engine === eng.id }"
+                @click="selectEngine(eng.id)"
+              >
+                <span class="engine-port-badge">:{{ eng.defaultPort }}</span>
+                <span class="engine-icon">{{ eng.icon }}</span>
+                <span class="engine-title">{{ eng.name }}</span>
+                <span class="engine-desc">{{ eng.desc }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cf-form-group">
             <label>Database Name</label>
-            <input v-model="newDB.name" placeholder="e.g. production_db" class="cf-input" />
+            <input v-model="newDB.name" :placeholder="suggestedDBName" class="cf-input" />
           </div>
+
           <div class="cf-form-group">
-            <label>Engine</label>
-            <select v-model="newDB.engine" class="cf-select">
-              <option value="postgres">PostgreSQL 16 (Native Low-RAM)</option>
-              <option value="mongodb">MongoDB 7 (Native Low-RAM)</option>
-            </select>
-          </div>
-          <div class="cf-form-group">
-            <label>RAM Profile</label>
+            <label>RAM Allocation Profile</label>
             <select v-model="newDB.ram_profile" class="cf-select">
-              <option value="micro">Micro (&lt;32MB RAM, 20 max conn)</option>
+              <option value="micro">Micro (&lt;32MB RAM, 20 max conn) - Sovereign VPS Default</option>
               <option value="standard">Standard (&lt;128MB RAM, 50 max conn)</option>
               <option value="heavy">Heavy (&lt;512MB RAM, 100 max conn)</option>
+              <option value="unlimited">Unlimited (Host Capacity, 0 Artificial Throttles)</option>
             </select>
           </div>
         </div>
         <div class="cf-modal-foot">
           <button class="btn-cf btn-cf-secondary" @click="showNewDBModal = false">Cancel</button>
-          <button class="btn-cf btn-cf-primary" @click="createDB">Provision</button>
+          <button class="btn-cf btn-cf-primary" :disabled="isProvisioningDB" @click="createDB">
+            {{ isProvisioningDB ? 'Deploying...' : 'Provision Dedicated Instance' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: DATABASE CONNECTION DETAILS (1-CLICK COPY) -->
+    <div v-if="showConnModal && selectedConn" class="cf-modal-backdrop">
+      <div class="cf-modal-box" style="max-width: 620px;">
+        <div class="cf-modal-head">
+          <h3 style="font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+            <span>{{ getEngineIcon(selectedConn.database.engine) }}</span>
+            <span>{{ selectedConn.database.name }} Connection Details</span>
+          </h3>
+          <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="showConnModal = false">✕</button>
+        </div>
+        <div class="cf-modal-body">
+          <p style="font-size: 0.82rem; color: var(--cf-text-secondary); margin-bottom: 1rem;">
+            Isolated dedicated process running natively on loopback and high-speed Unix domain socket.
+          </p>
+
+          <div class="cf-form-group">
+            <label>Internal TCP URI (Standard Network Connection)</label>
+            <div class="cf-copy-box">
+              <code>{{ selectedConn.tcp_uri }}</code>
+              <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="copyText(selectedConn.tcp_uri, 'tcp')">
+                {{ copiedKey === 'tcp' ? '✓ Copied' : 'Copy' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="cf-form-group">
+            <label>High-Speed Unix Domain Socket URI (Zero-Network IPC)</label>
+            <div class="cf-copy-box">
+              <code>{{ selectedConn.socket_uri }}</code>
+              <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="copyText(selectedConn.socket_uri, 'sock')">
+                {{ copiedKey === 'sock' ? '✓ Copied' : 'Copy' }}
+              </button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
+            <div class="cf-form-group">
+              <label>Host & Port</label>
+              <div class="cf-copy-box">
+                <code>127.0.0.1:{{ selectedConn.database.port }}</code>
+              </div>
+            </div>
+            <div class="cf-form-group">
+              <label>Admin User</label>
+              <div class="cf-copy-box">
+                <code>{{ selectedConn.database.admin_user }}</code>
+              </div>
+            </div>
+          </div>
+
+          <div class="cf-form-group">
+            <label>Decrypted Admin Password</label>
+            <div class="cf-copy-box">
+              <code>{{ showPassword ? selectedConn.password : '••••••••••••••••••••••••' }}</code>
+              <div style="display: flex; gap: 0.35rem;">
+                <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="showPassword = !showPassword">
+                  {{ showPassword ? 'Hide' : 'Show' }}
+                </button>
+                <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="copyText(selectedConn.password, 'pwd')">
+                  {{ copiedKey === 'pwd' ? '✓ Copied' : 'Copy' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cf-modal-foot">
+          <button class="btn-cf btn-cf-primary" @click="showConnModal = false">Done</button>
         </div>
       </div>
     </div>
@@ -517,10 +639,134 @@ const newApp = ref({
 
 const showNewDBModal = ref(false)
 const newDB = ref({
-  name: '',
+  name: 'postgres_db',
   engine: 'postgres',
   ram_profile: 'micro',
 })
+
+const dbEngines = [
+  { id: 'postgres', name: 'PostgreSQL 16', icon: '🐘', defaultPort: 5432, desc: 'Advanced relational DB with JSONB & ACID.' },
+  { id: 'mysql', name: 'MySQL 8.0', icon: '🐬', defaultPort: 3306, desc: 'Fast, battle-tested ACID relational DB with InnoDB.' },
+  { id: 'mariadb', name: 'MariaDB 11', icon: '🦭', defaultPort: 3306, desc: 'High-performance open source MySQL drop-in fork.' },
+  { id: 'mongodb', name: 'MongoDB 7.0', icon: '🍃', defaultPort: 27017, desc: 'High-throughput document store with BSON & flexible schema.' },
+  { id: 'redis', name: 'Redis 7.2', icon: '⚡', defaultPort: 6379, desc: 'Ultra-fast in-memory key-value cache and message broker.' },
+  { id: 'libsql', name: 'LibSQL / SQLite', icon: '🪶', defaultPort: 8080, desc: 'Modern distributed SQLite fork by Turso with wire protocol.' },
+]
+
+const getEngineIcon = (engine) => {
+  const match = dbEngines.find(e => e.id === engine)
+  return match ? match.icon : '🗄️'
+}
+
+const getEngineLabel = (engine) => {
+  const match = dbEngines.find(e => e.id === engine)
+  return match ? match.name : engine
+}
+
+const suggestedDBName = ref('e.g. production_db')
+
+const selectEngine = (engineId) => {
+  newDB.value.engine = engineId
+  if (!newDB.value.name || newDB.value.name.includes('_db') || newDB.value.name.includes('_cache')) {
+    newDB.value.name = engineId === 'redis' ? 'cache_redis' : `${engineId}_db`
+  }
+}
+
+const openCreateDBModal = () => {
+  showNewDBModal.value = true
+  if (!newDB.value.name) {
+    newDB.value.name = 'postgres_db'
+  }
+}
+
+const showConnModal = ref(false)
+const selectedConn = ref(null)
+const showPassword = ref(false)
+const copiedKey = ref('')
+const isProvisioningDB = ref(false)
+const activeLogDB = ref(null)
+const dbLogs = ref([])
+
+const copyText = (text, key) => {
+  if (!text) return
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+  } else {
+    const el = document.createElement('textarea')
+    el.value = text
+    document.body.appendChild(el)
+    el.select()
+    document.execCommand('copy')
+    document.body.removeChild(el)
+  }
+  copiedKey.value = key
+  setTimeout(() => {
+    if (copiedKey.value === key) copiedKey.value = ''
+  }, 2000)
+}
+
+const viewDBConnection = async (dbID) => {
+  try {
+    const res = await apiFetch(`/api/v1/databases/${dbID}`)
+    if (res.ok) {
+      selectedConn.value = await res.json()
+      showConnModal.value = true
+    }
+  } catch (e) {}
+}
+
+const startDB = async (dbID) => {
+  try {
+    const res = await apiFetch(`/api/v1/databases/${dbID}/start`, { method: 'POST' })
+    if (!res.ok) {
+      const err = await res.json()
+      alert(err.error || 'Failed to start database')
+    }
+    fetchState()
+  } catch (e) {
+    alert('Error starting database: ' + e.message)
+  }
+}
+
+const stopDB = async (dbID) => {
+  try {
+    await apiFetch(`/api/v1/databases/${dbID}/stop`, { method: 'POST' })
+    fetchState()
+  } catch (e) {}
+}
+
+const restartDB = async (dbID) => {
+  try {
+    const res = await apiFetch(`/api/v1/databases/${dbID}/restart`, { method: 'POST' })
+    if (!res.ok) {
+      const err = await res.json()
+      alert(err.error || 'Failed to restart database')
+    }
+    fetchState()
+  } catch (e) {
+    alert('Error restarting database: ' + e.message)
+  }
+}
+
+const deleteDB = async (dbID) => {
+  if (!confirm(`Are you sure you want to permanently delete database ${dbID}?`)) return
+  try {
+    await apiFetch(`/api/v1/databases/${dbID}`, { method: 'DELETE' })
+    fetchState()
+  } catch (e) {}
+}
+
+const openDBLogs = async (dbID) => {
+  activeLogDB.value = dbID
+  dbLogs.value = []
+  try {
+    const res = await apiFetch(`/api/v1/databases/${dbID}/logs?tail=100`)
+    if (res.ok) {
+      const data = await res.json()
+      dbLogs.value = data.lines || []
+    }
+  } catch (e) {}
+}
 
 const showNewBucketModal = ref(false)
 
@@ -626,6 +872,7 @@ const createApp = async () => {
 
 const createDB = async () => {
   if (!newDB.value.name) return
+  isProvisioningDB.value = true
   try {
     const res = await apiFetch('/api/v1/databases', {
       method: 'POST',
@@ -633,11 +880,21 @@ const createDB = async () => {
       body: JSON.stringify(newDB.value),
     })
     if (res.ok) {
+      const data = await res.json()
       showNewDBModal.value = false
+      selectedConn.value = data
+      showConnModal.value = true
       newDB.value = { name: '', engine: 'postgres', ram_profile: 'micro' }
       fetchState()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      alert('Failed to provision database: ' + (err.error || 'Server error'))
     }
-  } catch (e) {}
+  } catch (e) {
+    alert('Failed to provision database: ' + e.message)
+  } finally {
+    isProvisioningDB.value = false
+  }
 }
 
 const loadFiles = async () => {

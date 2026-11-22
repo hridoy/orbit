@@ -69,40 +69,71 @@ func TestTuningProfiles(t *testing.T) {
 		t.Errorf("conf must contain 16MB shared buffers")
 	}
 
+	mysqlConf := GenerateMySQLConf(3306, "/tmp/run/mysql.sock", "/tmp/data", ProfileMicro)
+	if !strings.Contains(mysqlConf, "performance_schema = off") || !strings.Contains(mysqlConf, "innodb_buffer_pool_size = 16M") {
+		t.Errorf("mysql conf must disable performance schema and set 16M innodb buffer: %s", mysqlConf)
+	}
+
+	redisConf := GenerateRedisConf(6379, "/tmp/run/redis.sock", "/tmp/data", "secret", ProfileMicro)
+	if !strings.Contains(redisConf, "maxmemory 32mb") || !strings.Contains(redisConf, "requirepass secret") {
+		t.Errorf("redis conf must set maxmemory 32mb and requirepass: %s", redisConf)
+	}
+
+	libsqlConf := GenerateLibSQLConf(8080, "/tmp/data", ProfileMicro)
+	if !strings.Contains(libsqlConf, `http_listen_addr = "127.0.0.1:8080"`) {
+		t.Errorf("libsql conf must listen on 8080: %s", libsqlConf)
+	}
+
 	mongoConf := GenerateMongoConf(27017, "/tmp/run", "/tmp/data", ProfileMicro)
 	if !strings.Contains(mongoConf, "cacheSizeGB: 0.05") {
 		t.Errorf("mongod conf must limit wiredTiger cache to 0.05")
 	}
 }
 
-func TestProvisionDatabase(t *testing.T) {
+func TestProvisionAllEngines(t *testing.T) {
 	_, mgr, tmpDir := setupDBTestEnv(t)
 	defer os.RemoveAll(tmpDir)
 
 	ctx := context.Background()
 
-	// Provision PostgreSQL instance
-	instance, password, err := mgr.ProvisionDatabase(ctx, "billing_db", "postgres", ProfileMicro)
-	if err != nil {
-		t.Fatalf("ProvisionDatabase failed: %v", err)
+	engines := []struct {
+		engine    string
+		startPort int
+		uriPrefix string
+	}{
+		{"postgres", 5432, "postgres://"},
+		{"mysql", 3306, "mysql://"},
+		{"mariadb", 3306, "mysql://"},
+		{"mongodb", 27017, "mongodb://"},
+		{"redis", 6379, "redis://"},
+		{"libsql", 8080, "libsql://"},
 	}
 
-	if instance.Engine != "postgres" || instance.Name != "billing_db" {
-		t.Errorf("unexpected instance: %+v", instance)
-	}
-	if len(password) != 24 {
-		t.Errorf("expected 24-char password, got %d", len(password))
-	}
-	if instance.Port < 5432 {
-		t.Errorf("expected port >= 5432, got %d", instance.Port)
-	}
+	for _, tc := range engines {
+		t.Run(tc.engine, func(t *testing.T) {
+			instance, password, err := mgr.ProvisionDatabase(ctx, tc.engine+"_db", tc.engine, ProfileMicro)
+			if err != nil {
+				t.Fatalf("ProvisionDatabase failed for %s: %v", tc.engine, err)
+			}
 
-	// Verify connection URIs
-	tcpURI, socketURI := mgr.GetConnectionURIs(instance, password)
-	if !strings.HasPrefix(tcpURI, "postgres://orbit_admin:") || !strings.Contains(tcpURI, "127.0.0.1") {
-		t.Errorf("invalid tcp URI: %s", tcpURI)
-	}
-	if !strings.Contains(socketURI, "host=") {
-		t.Errorf("invalid socket URI: %s", socketURI)
+			if instance.Engine != tc.engine {
+				t.Errorf("expected engine %s, got %s", tc.engine, instance.Engine)
+			}
+			if len(password) != 24 {
+				t.Errorf("expected 24-char password, got %d", len(password))
+			}
+			if instance.Port < tc.startPort {
+				t.Errorf("expected port >= %d, got %d", tc.startPort, instance.Port)
+			}
+
+			// Verify connection URIs
+			tcpURI, socketURI := mgr.GetConnectionURIs(instance, password)
+			if !strings.HasPrefix(tcpURI, tc.uriPrefix) || !strings.Contains(tcpURI, "127.0.0.1") {
+				t.Errorf("invalid tcp URI for %s: %s", tc.engine, tcpURI)
+			}
+			if socketURI == "" {
+				t.Errorf("empty socket URI for %s", tc.engine)
+			}
+		})
 	}
 }

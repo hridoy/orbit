@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
@@ -35,7 +36,10 @@ type DatabaseManager struct {
 	secStore  *db.SecretStore
 	vault     *security.Vault
 	postgres  *PostgresEngine
+	mysql     *MySQLEngine
 	mongodb   *MongoEngine
+	redis     *RedisEngine
+	libsql    *LibSQLEngine
 	running   map[string]*RunningDB
 	buffers   map[string]*compute.RingBuffer
 }
@@ -52,7 +56,10 @@ func NewDatabaseManager(
 		secStore: secStore,
 		vault:    vault,
 		postgres: NewPostgresEngine(),
+		mysql:    NewMySQLEngine(),
 		mongodb:  NewMongoEngine(),
+		redis:    NewRedisEngine(),
+		libsql:   NewLibSQLEngine(),
 		running:  make(map[string]*RunningDB),
 		buffers:  make(map[string]*compute.RingBuffer),
 	}
@@ -74,9 +81,19 @@ func (m *DatabaseManager) GetRingBuffer(dbID string) *compute.RingBuffer {
 	return rb
 }
 
-// FindFreePort searches for an available loopback port.
+// FindFreePort searches for an available loopback port not already registered in SQLite.
 func (m *DatabaseManager) FindFreePort(startPort int) (int, error) {
+	allocatedPorts := make(map[int]bool)
+	if existing, err := m.dbStore.ListDatabases(); err == nil {
+		for _, d := range existing {
+			allocatedPorts[d.Port] = true
+		}
+	}
+
 	for port := startPort; port < startPort+1000; port++ {
+		if allocatedPorts[port] {
+			continue
+		}
 		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 		if err == nil {
 			_ = ln.Close()
@@ -87,25 +104,31 @@ func (m *DatabaseManager) FindFreePort(startPort int) (int, error) {
 }
 
 // ProvisionDatabase creates a new dedicated, isolated database instance.
+// Supported engines (matching Dokploy): postgres, mysql, mariadb, mongodb, redis, libsql
 func (m *DatabaseManager) ProvisionDatabase(
 	ctx context.Context,
 	name string,
 	engine string,
 	ramProfile RAMProfile,
 ) (*db.DatabaseInstance, string, error) {
-	if engine != "postgres" && engine != "mongodb" {
-		return nil, "", fmt.Errorf("unsupported database engine: %s (must be 'postgres' or 'mongodb')", engine)
+	var startPort int
+	switch engine {
+	case "postgres":
+		startPort = 5432
+	case "mysql", "mariadb":
+		startPort = 3306
+	case "mongodb":
+		startPort = 27017
+	case "redis":
+		startPort = 6379
+	case "libsql":
+		startPort = 8080
+	default:
+		return nil, "", fmt.Errorf("unsupported database engine: %s (must be postgres, mysql, mariadb, mongodb, redis, or libsql)", engine)
 	}
 
 	dbID := fmt.Sprintf("db_%s_%s", engine, generateRandomSlug(6))
 	baseDir := m.DBBaseDir(dbID)
-
-	var startPort int
-	if engine == "postgres" {
-		startPort = 5432
-	} else {
-		startPort = 27017
-	}
 
 	port, err := m.FindFreePort(startPort)
 	if err != nil {
@@ -113,6 +136,9 @@ func (m *DatabaseManager) ProvisionDatabase(
 	}
 
 	adminUser := "orbit_admin"
+	if engine == "redis" {
+		adminUser = "default"
+	}
 	rawPassword := generateRandomPassword(24)
 
 	// Encrypt password via AES-256-GCM
@@ -126,13 +152,34 @@ func (m *DatabaseManager) ProvisionDatabase(
 	dataDir := filepath.Join(baseDir, "data")
 
 	// Run engine-specific provisioning
-	if engine == "postgres" {
+	switch engine {
+	case "postgres":
 		if err := m.postgres.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile); err != nil {
 			return nil, "", fmt.Errorf("postgres provision error: %w", err)
 		}
-	} else {
+	case "mysql":
+		socketPath = filepath.Join(baseDir, "run", "mysql.sock")
+		if err := m.mysql.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile, false); err != nil {
+			return nil, "", fmt.Errorf("mysql provision error: %w", err)
+		}
+	case "mariadb":
+		socketPath = filepath.Join(baseDir, "run", "mariadb.sock")
+		if err := m.mysql.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile, true); err != nil {
+			return nil, "", fmt.Errorf("mariadb provision error: %w", err)
+		}
+	case "mongodb":
 		if err := m.mongodb.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile); err != nil {
 			return nil, "", fmt.Errorf("mongodb provision error: %w", err)
+		}
+	case "redis":
+		socketPath = filepath.Join(baseDir, "run", "redis.sock")
+		if err := m.redis.Provision(ctx, baseDir, rawPassword, port, ramProfile); err != nil {
+			return nil, "", fmt.Errorf("redis provision error: %w", err)
+		}
+	case "libsql":
+		socketPath = filepath.Join(baseDir, "data", "libsql.db")
+		if err := m.libsql.Provision(ctx, baseDir, rawPassword, port, ramProfile); err != nil {
+			return nil, "", fmt.Errorf("libsql provision error: %w", err)
 		}
 	}
 
@@ -181,10 +228,22 @@ func (m *DatabaseManager) StartDatabase(ctx context.Context, dbID string) error 
 	childCtx, cancel := context.WithCancel(context.Background())
 	var cmd *exec.Cmd
 
-	if instance.Engine == "postgres" {
+	switch instance.Engine {
+	case "postgres":
 		cmd, err = m.postgres.Start(childCtx, baseDir, rb)
-	} else {
+	case "mysql":
+		cmd, err = m.mysql.Start(childCtx, baseDir, rb, false)
+	case "mariadb":
+		cmd, err = m.mysql.Start(childCtx, baseDir, rb, true)
+	case "mongodb":
 		cmd, err = m.mongodb.Start(childCtx, baseDir, rb)
+	case "redis":
+		cmd, err = m.redis.Start(childCtx, baseDir, rb)
+	case "libsql":
+		cmd, err = m.libsql.Start(childCtx, baseDir, rb, instance.Port)
+	default:
+		cancel()
+		return fmt.Errorf("unknown engine %s", instance.Engine)
 	}
 
 	if err != nil {
@@ -246,18 +305,45 @@ func (m *DatabaseManager) StopDatabase(dbID string) error {
 	}
 }
 
+// RestartDatabase stops and restarts the database.
+func (m *DatabaseManager) RestartDatabase(ctx context.Context, dbID string) error {
+	_ = m.StopDatabase(dbID)
+	time.Sleep(500 * time.Millisecond)
+	return m.StartDatabase(ctx, dbID)
+}
+
+// DeleteDatabase stops the database and removes all data.
+func (m *DatabaseManager) DeleteDatabase(ctx context.Context, dbID string) error {
+	_ = m.StopDatabase(dbID)
+	baseDir := m.DBBaseDir(dbID)
+	_ = os.RemoveAll(baseDir)
+	return m.dbStore.DeleteDatabase(dbID)
+}
+
 // GetConnectionURIs returns formatted TCP and Unix domain socket URIs for zero-network IPC.
 func (m *DatabaseManager) GetConnectionURIs(instance *db.DatabaseInstance, password string) (tcpURI, socketURI string) {
-	if instance.Engine == "postgres" {
+	switch instance.Engine {
+	case "postgres":
 		tcpURI = fmt.Sprintf("postgres://%s:%s@127.0.0.1:%d/%s?sslmode=disable",
 			instance.AdminUser, password, instance.Port, instance.Name)
 		socketURI = fmt.Sprintf("postgres://%s:%s@/%s?host=%s",
 			instance.AdminUser, password, instance.Name, instance.SocketPath)
-	} else {
+	case "mysql", "mariadb":
+		tcpURI = fmt.Sprintf("mysql://%s:%s@127.0.0.1:%d/%s",
+			instance.AdminUser, password, instance.Port, instance.Name)
+		socketURI = fmt.Sprintf("mysql://%s:%s@localhost/%s?socket=%s",
+			instance.AdminUser, password, instance.Name, instance.SocketPath)
+	case "mongodb":
 		tcpURI = fmt.Sprintf("mongodb://%s:%s@127.0.0.1:%d/%s?authSource=admin",
 			instance.AdminUser, password, instance.Port, instance.Name)
 		socketURI = fmt.Sprintf("mongodb://%s:%s@%%2F%s%%2Fmongodb-%d.sock/%s",
 			instance.AdminUser, password, instance.SocketPath, instance.Port, instance.Name)
+	case "redis":
+		tcpURI = fmt.Sprintf("redis://:%s@127.0.0.1:%d/0", password, instance.Port)
+		socketURI = fmt.Sprintf("redis://:%s@%s?db=0", password, instance.SocketPath)
+	case "libsql":
+		tcpURI = fmt.Sprintf("libsql://127.0.0.1:%d?authToken=%s", instance.Port, password)
+		socketURI = fmt.Sprintf("file://%s", instance.SocketPath)
 	}
 	return tcpURI, socketURI
 }

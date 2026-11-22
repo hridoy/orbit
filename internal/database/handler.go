@@ -34,6 +34,8 @@ func (h *DatabaseHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/databases/{id}", h.handleGet)
 	mux.HandleFunc("POST /api/v1/databases/{id}/start", h.handleStart)
 	mux.HandleFunc("POST /api/v1/databases/{id}/stop", h.handleStop)
+	mux.HandleFunc("POST /api/v1/databases/{id}/restart", h.handleRestart)
+	mux.HandleFunc("DELETE /api/v1/databases/{id}", h.handleDelete)
 	mux.HandleFunc("GET /api/v1/databases/{id}/logs", h.handleGetLogs)
 }
 
@@ -50,8 +52,8 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 func (h *DatabaseHandler) handleProvision(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name       string `json:"name"`
-		Engine     string `json:"engine"`      // 'postgres' or 'mongodb'
-		RAMProfile string `json:"ram_profile"` // 'micro', 'standard', 'heavy'
+		Engine     string `json:"engine"`      // postgres, mysql, mariadb, mongodb, redis, libsql
+		RAMProfile string `json:"ram_profile"` // micro, standard, heavy, unlimited
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -65,7 +67,7 @@ func (h *DatabaseHandler) handleProvision(w http.ResponseWriter, r *http.Request
 	}
 
 	profile := RAMProfile(body.RAMProfile)
-	if profile != ProfileMicro && profile != ProfileStandard && profile != ProfileHeavy {
+	if profile != ProfileMicro && profile != ProfileStandard && profile != ProfileHeavy && profile != ProfileUnlimited {
 		profile = ProfileMicro
 	}
 
@@ -140,6 +142,24 @@ func (h *DatabaseHandler) handleStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "database stopped successfully"})
+}
+
+func (h *DatabaseHandler) handleRestart(w http.ResponseWriter, r *http.Request) {
+	dbID := r.PathValue("id")
+	if err := h.manager.RestartDatabase(r.Context(), dbID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "database restarted successfully"})
+}
+
+func (h *DatabaseHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
+	dbID := r.PathValue("id")
+	if err := h.manager.DeleteDatabase(r.Context(), dbID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "database deleted successfully"})
 }
 
 func (h *DatabaseHandler) handleGetLogs(w http.ResponseWriter, r *http.Request) {
