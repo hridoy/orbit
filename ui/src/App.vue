@@ -22,37 +22,149 @@
       </div>
 
       <div class="sidebar-nav">
-        <div class="nav-section-title">Core Services</div>
+        <!-- QUICK SEARCH BUTTON (CLOUDFLARE KUMO) -->
+        <button class="sidebar-search-btn" @click="showQuickSearch = true">
+          <svg viewBox="0 0 256 256" fill="currentColor">
+            <path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/>
+          </svg>
+          <span>Quick search...</span>
+          <kbd>⌘K</kbd>
+        </button>
+
+        <!-- TOP LEVEL NAVIGATION -->
         <button class="cf-nav-item" :class="{ active: currentTab === 'overview' }" @click="currentTab = 'overview'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-          <span>Overview</span>
+          <svg viewBox="0 0 16 16" fill="currentColor" class="opacity-60 shrink-0">
+            <path d="M8 1L1 7h2v7h4v-4h2v4h4V7h2L8 1z"/>
+          </svg>
+          <span>Account home</span>
         </button>
 
-        <button class="cf-nav-item" :class="{ active: currentTab === 'workers' }" @click="currentTab = 'workers'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span>Workers & Compute</span>
+        <!-- RECENTS ACCORDION -->
+        <button class="cf-nav-group-btn" :class="{ expanded: openGroups.recents }" @click="toggleGroup('recents')">
+          <div class="group-label-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="group-icon">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Recents</span>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-icon">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
         </button>
+        <div v-if="openGroups.recents" class="cf-nav-sub-menu">
+          <button v-for="app in apps.slice(0, 3)" :key="app.app_id" class="cf-nav-sub-item" @click="currentTab = 'workers'">
+            <span>⚡ {{ app.name }}</span>
+            <span class="badge-tag-beta">Worker</span>
+          </button>
+          <button v-for="db in databases.slice(0, 2)" :key="db.db_id" class="cf-nav-sub-item" @click="currentTab = 'databases'">
+            <span>{{ getEngineIcon(db.engine) }} {{ db.name }}</span>
+            <span class="badge-tag-beta">{{ db.engine }}</span>
+          </button>
+        </div>
 
-        <button class="cf-nav-item" :class="{ active: currentTab === 'databases' }" @click="currentTab = 'databases'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
-          <span>D1 & Databases</span>
-        </button>
+        <!-- SECTION: BUILD -->
+        <div class="sidebar-section-divider">Build</div>
 
-        <button class="cf-nav-item" :class="{ active: currentTab === 'r2' }" @click="currentTab = 'r2'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/></svg>
-          <span>R2 Storage (S3)</span>
+        <!-- COMPUTE GROUP -->
+        <button class="cf-nav-group-btn" :class="{ expanded: openGroups.compute }" @click="toggleGroup('compute')">
+          <div class="group-label-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="group-icon">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            <span>Compute</span>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-icon">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
         </button>
+        <div v-if="openGroups.compute" class="cf-nav-sub-menu">
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'workers' }" @click="currentTab = 'workers'">
+            <span>Workers & Compute</span>
+          </button>
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'workers' }" @click="currentTab = 'workers'">
+            <span>Containers & Namespaces</span>
+          </button>
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'workers' }" @click="currentTab = 'workers'">
+            <span>Queues & Workflows</span>
+            <span class="badge-tag-beta">Beta</span>
+          </button>
+        </div>
 
-        <div class="nav-section-title">Host & Governance</div>
-        <button class="cf-nav-item" :class="{ active: currentTab === 'files' }" @click="currentTab = 'files'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
-          <span>Jailed Filesystem</span>
+        <!-- STORAGE & DATABASES GROUP -->
+        <button class="cf-nav-group-btn" :class="{ expanded: openGroups.storage }" @click="toggleGroup('storage')">
+          <div class="group-label-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="group-icon">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
+            </svg>
+            <span>Storage & databases</span>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-icon">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
         </button>
+        <div v-if="openGroups.storage" class="cf-nav-sub-menu">
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'databases' }" @click="currentTab = 'databases'">
+            <span>D1 & Dedicated DBs</span>
+          </button>
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'r2' }" @click="currentTab = 'r2'">
+            <span>R2 Object Storage</span>
+          </button>
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'files' }" @click="currentTab = 'files'">
+            <span>Artifacts & Jailed Files</span>
+          </button>
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'security' }" @click="currentTab = 'security'">
+            <span>Secrets Store</span>
+            <span class="badge-tag-beta">Beta</span>
+          </button>
+        </div>
 
-        <button class="cf-nav-item" :class="{ active: currentTab === 'security' }" @click="currentTab = 'security'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>Zero Trust & Security</span>
+        <!-- SECTION: PROTECT & CONNECT -->
+        <div class="sidebar-section-divider">Protect & connect</div>
+
+        <!-- ZERO TRUST GROUP -->
+        <button class="cf-nav-group-btn" :class="{ expanded: openGroups.protect }" @click="toggleGroup('protect')">
+          <div class="group-label-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="group-icon">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>Zero Trust & Security</span>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-icon">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
         </button>
+        <div v-if="openGroups.protect" class="cf-nav-sub-menu">
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'security' }" @click="currentTab = 'security'">
+            <span>Access controls & mTLS</span>
+          </button>
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'security' }" @click="currentTab = 'security'">
+            <span>Traffic controls & ACME</span>
+          </button>
+        </div>
+
+        <!-- SECTION: OBSERVABILITY -->
+        <div class="sidebar-section-divider">Observability</div>
+
+        <button class="cf-nav-group-btn" :class="{ expanded: openGroups.observability }" @click="toggleGroup('observability')">
+          <div class="group-label-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="group-icon">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            <span>Telemetry & Logs</span>
+            <span class="badge-tag-new">New</span>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-icon">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+        <div v-if="openGroups.observability" class="cf-nav-sub-menu">
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'overview' }" @click="currentTab = 'overview'">
+            <span>Host & Agent Telemetry</span>
+          </button>
+          <button class="cf-nav-sub-item" :class="{ active: currentTab === 'workers' }" @click="currentTab = 'workers'">
+            <span>Real-time Log Streams</span>
+          </button>
+        </div>
       </div>
 
       <div class="sidebar-footer">
@@ -606,11 +718,95 @@
         </div>
       </div>
     </div>
+
+    <!-- QUICK SEARCH SPOTLIGHT (⌘K) MODAL -->
+    <div v-if="showQuickSearch" class="cf-command-backdrop" @click.self="showQuickSearch = false">
+      <div class="cf-command-palette">
+        <div class="cf-command-search-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input 
+            ref="quickSearchInputRef"
+            v-model="quickSearchQuery" 
+            placeholder="Quick search workloads, databases, buckets, secrets..."
+            @keydown.esc="showQuickSearch = false"
+          />
+          <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="showQuickSearch = false">Esc</button>
+        </div>
+        <div class="cf-command-results">
+          <div class="cf-command-section-title">Navigation & Core Services</div>
+          <div class="cf-command-item" @click="navigateTab('overview')">
+            <span>🏠 Account Home & Live Telemetry</span>
+            <span class="cf-pill stopped">Overview</span>
+          </div>
+          <div class="cf-command-item" @click="navigateTab('workers')">
+            <span>⚡ Workers & Compute Engine</span>
+            <span class="cf-pill stopped">{{ apps.length }} apps</span>
+          </div>
+          <div class="cf-command-item" @click="navigateTab('databases')">
+            <span>🗄️ D1 & Dedicated Databases</span>
+            <span class="cf-pill stopped">{{ databases.length }} instances</span>
+          </div>
+          <div class="cf-command-item" @click="navigateTab('r2')">
+            <span>📦 R2 Object Storage (S3 API)</span>
+            <span class="cf-pill stopped">{{ buckets.length }} buckets</span>
+          </div>
+          <div class="cf-command-item" @click="navigateTab('files')">
+            <span>📁 Jailed Filesystem Explorer</span>
+            <span class="cf-pill stopped">Sandbox</span>
+          </div>
+          <div class="cf-command-item" @click="navigateTab('security')">
+            <span>🛡️ Zero Trust Vault & Secrets</span>
+            <span class="cf-pill stopped">AES-256</span>
+          </div>
+
+          <div v-if="filteredApps.length > 0">
+            <div class="cf-command-section-title">Workers & Compute</div>
+            <div v-for="a in filteredApps" :key="a.app_id" class="cf-command-item" @click="navigateTab('workers')">
+              <span>⚡ {{ a.name }} ({{ a.app_id }})</span>
+              <span class="cf-pill orange">:{{ a.active_port }}</span>
+            </div>
+          </div>
+
+          <div v-if="filteredDBs.length > 0">
+            <div class="cf-command-section-title">Dedicated Databases</div>
+            <div v-for="d in filteredDBs" :key="d.db_id" class="cf-command-item" @click="navigateTab('databases')">
+              <span>{{ getEngineIcon(d.engine) }} {{ d.name }} ({{ d.engine }})</span>
+              <span class="cf-pill active">:{{ d.port }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="cf-command-foot">
+          <span>Navigate with keyboard or click</span>
+          <kbd>ESC to close</kbd>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+
+const openGroups = ref({
+  recents: true,
+  compute: true,
+  storage: true,
+  protect: false,
+  observability: true,
+})
+
+const toggleGroup = (key) => {
+  openGroups.value[key] = !openGroups.value[key]
+}
+
+const showQuickSearch = ref(false)
+const quickSearchQuery = ref('')
+const quickSearchInputRef = ref(null)
+
+const navigateTab = (tab) => {
+  currentTab.value = tab
+  showQuickSearch.value = false
+}
 
 const currentTab = ref('overview')
 const nodeInfo = ref({})
@@ -921,6 +1117,30 @@ const toggleTheme = () => {
   }
 }
 
+const filteredApps = computed(() => {
+  if (!quickSearchQuery.value) return apps.value
+  const q = quickSearchQuery.value.toLowerCase()
+  return apps.value.filter(a => (a.name && a.name.toLowerCase().includes(q)) || (a.app_id && a.app_id.toLowerCase().includes(q)))
+})
+
+const filteredDBs = computed(() => {
+  if (!quickSearchQuery.value) return databases.value
+  const q = quickSearchQuery.value.toLowerCase()
+  return databases.value.filter(d => (d.name && d.name.toLowerCase().includes(q)) || (d.engine && d.engine.toLowerCase().includes(q)))
+})
+
+const handleKeydown = (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    showQuickSearch.value = !showQuickSearch.value
+    if (showQuickSearch.value) {
+      nextTick(() => {
+        if (quickSearchInputRef.value) quickSearchInputRef.value.focus()
+      })
+    }
+  }
+}
+
 onMounted(() => {
   const saved = localStorage.getItem('orbit_theme')
   if (saved === 'dark') {
@@ -933,10 +1153,12 @@ onMounted(() => {
   fetchState()
   startTelemetrySSE()
   setInterval(fetchState, 5000)
+  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (telemetryEventSource) telemetryEventSource.close()
   if (logEventSource) logEventSource.close()
+  window.removeEventListener('keydown', handleKeydown)
 })
 </script>
