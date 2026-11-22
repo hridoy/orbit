@@ -1,79 +1,87 @@
 /* ==========================================================================
-   Orbit Sovereign Cloud — Cloudflare Dashboard Design System
-   DEFAULT THEME: CLOUDFLARE LIGHT MODE
+   Orbit Sovereign Cloud — Cloudflare Kumo Dashboard Design System
+   DEFAULT THEME: CLOUDFLARE LIGHT MODE (KUMO TOKENS)
    Pure Native CSS — 100% Zero-Tailwind, Zero-Bootstrap
    ========================================================================== */
 
 :root {
-  /* Cloudflare Brand Colors */
-  --cf-orange: #f38020;
-  --cf-orange-hover: #e56800;
-  --cf-orange-subtle: rgba(243, 128, 32, 0.08);
-  --cf-orange-border: rgba(243, 128, 32, 0.3);
+  /* Cloudflare Brand Colors (Kumo Tokens) */
+  --cf-orange: #f6821f;
+  --cf-orange-hover: #ee730a;
+  --cf-orange-subtle: rgba(246, 130, 31, 0.08);
+  --cf-orange-border: rgba(246, 130, 31, 0.28);
   --cf-blue: #0051c3;
-  --cf-blue-hover: #0070f3;
+  --cf-blue-hover: #003681;
   --cf-blue-subtle: rgba(0, 81, 195, 0.08);
 
-  /* Cloudflare LIGHT THEME Canvas (DEFAULT) */
-  --cf-bg-canvas: #f4f5f8;
-  --cf-bg-sidebar: #ffffff;
-  --cf-bg-header: #ffffff;
+  /* Cloudflare Kumo Light Theme Canvas (DEFAULT) */
+  --cf-bg-canvas: #fafafa;
+  --cf-bg-sidebar: #fafafa;
+  --cf-bg-header: #fafafa;
   --cf-bg-card: #ffffff;
-  --cf-bg-card-hover: #fcfcfd;
+  --cf-bg-card-hover: #fcfcfc;
   --cf-bg-input: #ffffff;
-  --cf-bg-secondary: #f8fafc;
-  --cf-bg-tertiary: #f1f5f9;
+  --cf-bg-secondary: #f5f5f5;
+  --cf-bg-tertiary: #f0f0f1;
+  --cf-bg-hover: #f0f0f1;
 
-  /* Borders & Dividers */
-  --cf-border: #e2e8f0;
-  --cf-border-subtle: #f1f5f9;
-  --cf-border-hover: #cbd5e1;
-  --cf-border-focus: #f38020;
+  /* Borders & Dividers (Kumo Line: rgba(0,0,0,0.09)) */
+  --cf-border: rgba(0, 0, 0, 0.09);
+  --cf-border-subtle: rgba(0, 0, 0, 0.05);
+  --cf-border-hover: rgba(0, 0, 0, 0.18);
+  --cf-border-focus: #f6821f;
 
   /* Typography */
-  --cf-text-primary: #0f172a;
-  --cf-text-secondary: #334155;
-  --cf-text-muted: #64748b;
-  --cf-text-dim: #94a3b8;
+  --cf-text-primary: #1f242e;
+  --cf-text-strong: #111111;
+  --cf-text-secondary: #4b5563;
+  --cf-text-muted: #737373;
+  --cf-text-dim: #a3a3a3;
+  --cf-text-link: #0051c3;
 
   /* Status Colors */
   --cf-success: #059669;
-  --cf-success-bg: #ecfdf5;
+  --cf-success-bg: rgba(5, 150, 105, 0.08);
   --cf-warning: #d97706;
-  --cf-warning-bg: #fffbeb;
+  --cf-warning-bg: rgba(217, 119, 6, 0.08);
   --cf-danger: #dc2626;
-  --cf-danger-bg: #fef2f2;
+  --cf-danger-bg: rgba(220, 38, 38, 0.08);
 
-  /* Elevation Shadows */
+  /* Elevation Shadows (Kumo Shadows) */
+  --cf-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --cf-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --cf-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
   --cf-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --cf-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 
   /* Fonts */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: "Paper Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 /* Optional Dark Mode (via data-theme="dark") */
 [data-theme="dark"] {
-  --cf-bg-canvas: #090b10;
+  --cf-bg-canvas: #0c0f17;
   --cf-bg-sidebar: #0f131c;
   --cf-bg-header: #0f131c;
   --cf-bg-card: #151a26;
   --cf-bg-card-hover: #1b2232;
   --cf-bg-input: #090c13;
-  --cf-bg-secondary: #1e2638;
-  --cf-bg-tertiary: #192132;
+  --cf-bg-secondary: #1a2233;
+  --cf-bg-tertiary: #1f293d;
+  --cf-bg-hover: #1e273a;
 
-  --cf-border: #222b3d;
-  --cf-border-subtle: rgba(255, 255, 255, 0.06);
-  --cf-border-hover: #3b4863;
-  --cf-border-focus: #f38020;
+  --cf-border: rgba(255, 255, 255, 0.1);
+  --cf-border-subtle: rgba(255, 255, 255, 0.05);
+  --cf-border-hover: rgba(255, 255, 255, 0.2);
+  --cf-border-focus: #f6821f;
 
   --cf-text-primary: #f8fafc;
+  --cf-text-strong: #ffffff;
   --cf-text-secondary: #cbd5e1;
   --cf-text-muted: #8492a6;
-  --cf-text-dim: #54647a;
+  --cf-text-dim: #64748b;
+  --cf-text-link: #38bdf8;
 
   --cf-success: #10b981;
   --cf-success-bg: rgba(16, 185, 129, 0.12);
@@ -82,9 +90,11 @@
   --cf-danger: #ef4444;
   --cf-danger-bg: rgba(239, 68, 68, 0.12);
 
+  --cf-shadow-xs: none;
   --cf-shadow-sm: none;
   --cf-shadow: none;
   --cf-shadow-md: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --cf-shadow-lg: 0 20px 30px rgba(0, 0, 0, 0.6);
 }
 
 * {
@@ -343,11 +353,21 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding-left: 1.15rem;
+  padding-left: 26px;
   margin-top: 2px;
   margin-bottom: 6px;
-  border-left: 1px solid var(--cf-border);
-  margin-left: 1.35rem;
+}
+
+/* Exact Cloudflare Kumo 1px Vertical Guide Line */
+.cf-nav-sub-menu::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 18px;
+  width: 1px;
+  background: var(--cf-border);
+  pointer-events: none;
 }
 
 .cf-nav-sub-item {
@@ -521,17 +541,16 @@ body {
 }
 
 .cf-header {
-  height: 60px;
+  height: 58px;
   background-color: var(--cf-bg-header);
   border-bottom: 1px solid var(--cf-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2rem;
+  padding: 0 1.75rem;
   position: sticky;
   top: 0;
   z-index: 30;
-  box-shadow: var(--cf-shadow-sm);
 }
 
 .header-left {
@@ -544,11 +563,13 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: var(--cf-bg-input);
+  background-color: #ffffff;
   border: 1px solid var(--cf-border);
-  border-radius: 6px;
-  padding: 0.45rem 0.75rem;
-  width: 340px;
+  border-radius: 8px;
+  box-shadow: var(--cf-shadow-xs);
+  padding: 0 0.75rem;
+  height: 34px;
+  width: 360px;
   transition: all 0.15s;
 }
 
@@ -671,16 +692,16 @@ body {
 .cf-card {
   background: var(--cf-bg-card);
   border: 1px solid var(--cf-border);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1.25rem;
   position: relative;
-  box-shadow: var(--cf-shadow-sm);
+  box-shadow: var(--cf-shadow-xs);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .cf-card:hover {
   border-color: var(--cf-border-hover);
-  box-shadow: var(--cf-shadow);
+  box-shadow: var(--cf-shadow-sm);
 }
 
 .cf-card-header {
@@ -729,20 +750,20 @@ body {
 .metric-tag.orange { background: var(--cf-orange-subtle); color: var(--cf-orange); border: 1px solid var(--cf-orange-border); }
 
 /* ==========================================================================
-   Cloudflare Tables & Lists
+   Cloudflare Tables & Lists (Kumo Specs)
    ========================================================================== */
 
 .cf-table-wrapper {
   background: var(--cf-bg-card);
   border: 1px solid var(--cf-border);
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   margin-bottom: 2rem;
-  box-shadow: var(--cf-shadow-sm);
+  box-shadow: var(--cf-shadow-xs);
 }
 
 .cf-table-header {
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1.25rem;
   border-bottom: 1px solid var(--cf-border);
   display: flex;
   justify-content: space-between;
@@ -757,25 +778,27 @@ body {
 }
 
 .cf-table th {
-  background: var(--cf-bg-secondary);
-  padding: 0.75rem 1.25rem;
+  background: #f7f7f8;
+  padding: 0.65rem 1.15rem;
   font-size: 0.78rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--cf-text-muted);
   border-bottom: 1px solid var(--cf-border);
+  height: 38px;
 }
 
 .cf-table td {
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1.15rem;
   border-bottom: 1px solid var(--cf-border-subtle);
-  font-size: 0.88rem;
-  color: var(--cf-text-secondary);
+  font-size: 0.86rem;
+  color: var(--cf-text-primary);
+  height: 48px;
 }
 
 .cf-table tr:hover td {
-  background: var(--cf-bg-card-hover);
+  background: #fafafa;
 }
 
 .cf-table tr:last-child td {
@@ -794,39 +817,49 @@ code {
 }
 
 /* ==========================================================================
-   Buttons & Status Pills
+   Buttons & Status Pills (Kumo Specs)
    ========================================================================== */
 
 .btn-cf {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  gap: 0.45rem;
+  height: 36px;
+  padding: 0 0.85rem;
+  border-radius: 8px;
+  font-size: 0.86rem;
   font-weight: 500;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.15s ease;
   text-decoration: none;
+  user-select: none;
+  white-space: nowrap;
 }
 
 .btn-cf-primary {
   background-color: var(--cf-orange);
   color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(243, 128, 32, 0.2);
+  font-weight: 500;
+  border: 1px solid var(--cf-orange-hover);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .btn-cf-primary:hover {
   background-color: var(--cf-orange-hover);
 }
 
+.btn-cf-primary:active {
+  transform: scale(0.99);
+}
+
 .btn-cf-secondary {
-  background-color: var(--cf-bg-input);
-  border-color: var(--cf-border);
+  background-color: #ffffff;
+  border: 1px solid var(--cf-border);
   color: var(--cf-text-primary);
+  box-shadow: var(--cf-shadow-xs);
+  font-weight: 500;
 }
 
 .btn-cf-secondary:hover {
@@ -835,9 +868,10 @@ code {
 }
 
 .btn-cf-sm {
-  padding: 0.3rem 0.7rem;
-  font-size: 0.8rem;
-  border-radius: 5px;
+  height: 28px;
+  padding: 0 0.65rem;
+  font-size: 0.78rem;
+  border-radius: 6px;
 }
 
 .cf-pill {
