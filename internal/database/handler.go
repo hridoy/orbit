@@ -1,0 +1,160 @@
+package database
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"orbit/internal/db"
+	"orbit/internal/security"
+)
+
+type DatabaseHandler struct {
+	dbStore *db.DatabaseStore
+	manager *DatabaseManager
+	vault   *security.Vault
+}
+
+func NewDatabaseHandler(
+	dbStore *db.DatabaseStore,
+	manager *DatabaseManager,
+	vault *security.Vault,
+) *DatabaseHandler {
+	return &DatabaseHandler{
+		dbStore: dbStore,
+		manager: manager,
+		vault:   vault,
+	}
+}
+
+func (h *DatabaseHandler) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/v1/databases", h.handleProvision)
+	mux.HandleFunc("GET /api/v1/databases", h.handleList)
+	mux.HandleFunc("GET /api/v1/databases/{id}", h.handleGet)
+	mux.HandleFunc("POST /api/v1/databases/{id}/start", h.handleStart)
+	mux.HandleFunc("POST /api/v1/databases/{id}/stop", h.handleStop)
+	mux.HandleFunc("GET /api/v1/databases/{id}/logs", h.handleGetLogs)
+}
+
+func writeJSON(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(data)
+}
+
+func writeError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+func (h *DatabaseHandler) handleProvision(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name       string `json:"name"`
+		Engine     string `json:"engine"`      // 'postgres' or 'mongodb'
+		RAMProfile string `json:"ram_profile"` // 'micro', 'standard', 'heavy'
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if body.Name == "" || body.Engine == "" {
+		writeError(w, http.StatusBadRequest, "name and engine are required")
+		return
+	}
+
+	profile := RAMProfile(body.RAMProfile)
+	if profile != ProfileMicro && profile != ProfileStandard && profile != ProfileHeavy {
+		profile = ProfileMicro
+	}
+
+	instance, rawPassword, err := h.manager.ProvisionDatabase(r.Context(), body.Name, body.Engine, profile)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	tcpURI, socketURI := h.manager.GetConnectionURIs(instance, rawPassword)
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"database":   instance,
+		"password":   rawPassword,
+		"tcp_uri":    tcpURI,
+		"socket_uri": socketURI,
+	})
+}
+
+func (h *DatabaseHandler) handleList(w http.ResponseWriter, r *http.Request) {
+	list, err := h.dbStore.ListDatabases()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if list == nil {
+		list = []*db.DatabaseInstance{}
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+func (h *DatabaseHandler) handleGet(w http.ResponseWriter, r *http.Request) {
+	dbID := r.PathValue("id")
+	instance, err := h.dbStore.GetDatabase(dbID)
+	if err != nil || instance == nil {
+		writeError(w, http.StatusNotFound, "database not found")
+		return
+	}
+
+	// Decrypt password
+	var rawPassword string
+	parts := strings.Split(instance.EncryptedPassword, ":")
+	if len(parts) == 2 {
+		if decrypted, err := h.vault.Decrypt(parts[0], parts[1]); err == nil {
+			rawPassword = string(decrypted)
+		}
+	}
+
+	tcpURI, socketURI := h.manager.GetConnectionURIs(instance, rawPassword)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"database":   instance,
+		"password":   rawPassword,
+		"tcp_uri":    tcpURI,
+		"socket_uri": socketURI,
+	})
+}
+
+func (h *DatabaseHandler) handleStart(w http.ResponseWriter, r *http.Request) {
+	dbID := r.PathValue("id")
+	if err := h.manager.StartDatabase(r.Context(), dbID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "database started successfully"})
+}
+
+func (h *DatabaseHandler) handleStop(w http.ResponseWriter, r *http.Request) {
+	dbID := r.PathValue("id")
+	if err := h.manager.StopDatabase(dbID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "database stopped successfully"})
+}
+
+func (h *DatabaseHandler) handleGetLogs(w http.ResponseWriter, r *http.Request) {
+	dbID := r.PathValue("id")
+	tailStr := r.URL.Query().Get("tail")
+	tail := 100
+	if val, err := strconv.Atoi(tailStr); err == nil && val > 0 {
+		tail = val
+	}
+
+	rb := h.manager.GetRingBuffer(dbID)
+	lines := rb.GetTail(tail)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"db_id": dbID,
+		"lines": lines,
+	})
+}
