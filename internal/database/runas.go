@@ -64,6 +64,18 @@ func chownDBTree(dir string) error {
 	if err != nil || cred == nil {
 		return err
 	}
+	// The service user must be able to walk into every parent folder (execute only, no read).
+	for p := filepath.Dir(dir); p != "/" && p != "." && p != ""; p = filepath.Dir(p) {
+		info, err := os.Stat(p)
+		if err != nil {
+			return err
+		}
+		if info.Mode().Perm()&0001 == 0 {
+			if err := os.Chmod(p, info.Mode().Perm()|0001); err != nil {
+				return err
+			}
+		}
+	}
 	return filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
