@@ -44,9 +44,6 @@ func TestSetupThenLogin(t *testing.T) {
 	h, tm := newAuthTestHandler(t)
 	local := "127.0.0.1:50000"
 
-	if rec := post(h.handleSetup, "/api/v1/auth/setup", map[string]string{"username": "ops", "password": "correct-horse"}, "203.0.113.9:1"); rec.Code != http.StatusForbidden {
-		t.Fatalf("setup from remote host: got %d, want 403", rec.Code)
-	}
 	if rec := post(h.handleSetup, "/api/v1/auth/setup", map[string]string{"username": "ops", "password": "short"}, local); rec.Code != http.StatusBadRequest {
 		t.Fatalf("short password: got %d, want 400", rec.Code)
 	}

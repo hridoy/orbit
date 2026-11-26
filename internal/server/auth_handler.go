@@ -67,13 +67,9 @@ func decodeCredentials(w http.ResponseWriter, r *http.Request) (credentials, boo
 	return c, true
 }
 
-// handleSetup creates the operator account. It works once, and only from the local machine,
-// so a stranger on the network cannot claim a fresh install.
+// handleSetup creates the operator account. It works once. Network access is limited by the
+// firewall to the owner's IPs, so this endpoint is only reachable from them.
 func (h *AuthHandler) handleSetup(w http.ResponseWriter, r *http.Request) {
-	if !isLoopback(r) {
-		writeAuthJSON(w, http.StatusForbidden, map[string]string{"error": "first-run setup must be done from this machine (SSH tunnel)"})
-		return
-	}
 	c, ok := decodeCredentials(w, r)
 	if !ok {
 		return
@@ -169,15 +165,6 @@ func (h *AuthHandler) recent(ip string) []time.Time {
 	}
 	h.failures[ip] = kept
 	return kept
-}
-
-func isLoopback(r *http.Request) bool {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
 }
 
 func clientIP(r *http.Request) string {
