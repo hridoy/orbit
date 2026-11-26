@@ -31,6 +31,9 @@ func NewDatabaseHandler(
 func (h *DatabaseHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/databases", h.handleProvision)
 	mux.HandleFunc("GET /api/v1/databases/engines", h.handleEngines)
+	mux.HandleFunc("GET /api/v1/databases/port-suggestions", h.handlePortSuggestions)
+	mux.HandleFunc("GET /api/v1/databases/{id}/access", h.handleAccessGet)
+	mux.HandleFunc("PUT /api/v1/databases/{id}/access", h.handleAccessPut)
 	mux.HandleFunc("GET /api/v1/databases", h.handleList)
 	mux.HandleFunc("GET /api/v1/databases/{id}", h.handleGet)
 	mux.HandleFunc("POST /api/v1/databases/{id}/start", h.handleStart)

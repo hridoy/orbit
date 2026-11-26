@@ -41,6 +41,41 @@
         <p class="db-muted">The database listens on 127.0.0.1 only. Apps on this server connect with the string above.</p>
       </div>
 
+      <!-- Access: internal stays on this server, external is opened on purpose -->
+      <div class="db-card">
+        <h2 class="db-h2">Internal access (apps on this server)</h2>
+        <div class="db-kv"><span>Connection string</span><SecretField v-if="access" :value="access.internal_uri" :revealed="false" /></div>
+        <div v-if="access && access.socket_uri" class="db-kv"><span>Socket</span><SecretField :value="access.socket_uri" :revealed="false" /></div>
+      </div>
+
+      <div class="db-card">
+        <h2 class="db-h2">External access (from the internet)</h2>
+        <p class="db-muted">Opens a public port that forwards to this database. Traffic is not encrypted, so keep the password strong and limit who can reach the port.</p>
+
+        <template v-if="access && access.external_open">
+          <div class="db-kv"><span>Public port</span><strong>{{ access.external_port }}</strong></div>
+          <div class="db-kv"><span>Connection string</span><SecretField :value="access.external_uri" :revealed="false" /></div>
+          <button class="btn-cf btn-cf-secondary" :disabled="busy" @click="setExternal(false)">Close external port</button>
+        </template>
+
+        <form v-else class="db-port-form" @submit.prevent="setExternal(true)">
+          <label>
+            Public port
+            <select v-model="portChoice">
+              <option v-for="p in access?.suggested_ports || []" :key="p" :value="String(p)">{{ p }} (free)</option>
+              <option value="custom">Custom port…</option>
+            </select>
+          </label>
+          <label v-if="portChoice === 'custom'">
+            Port number (1024 to 65535)
+            <input v-model.number="customPort" type="number" min="1024" max="65535" required />
+          </label>
+          <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy || (portChoice === 'custom' && !customPort)">
+            {{ busy ? 'Opening…' : 'Open external port' }}
+          </button>
+        </form>
+      </div>
+
       <!-- Logs -->
       <div class="db-card">
         <h2 class="db-h2">Logs</h2>
@@ -66,6 +101,9 @@ const loading = ref(true)
 const busy = ref(false)
 const error = ref('')
 const notice = ref('')
+const access = ref(null)
+const portChoice = ref('')
+const customPort = ref(null)
 
 const load = async () => {
   try {
@@ -75,6 +113,36 @@ const load = async () => {
     error.value = e.message
   } finally {
     loading.value = false
+  }
+}
+
+const loadAccess = async () => {
+  try {
+    access.value = await api(`/api/v1/databases/${id.value}/access`)
+    if (!portChoice.value && access.value.suggested_ports?.length) {
+      portChoice.value = String(access.value.suggested_ports[0])
+    }
+  } catch (e) {}
+}
+
+const setExternal = async (enabled) => {
+  busy.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const port = portChoice.value === 'custom' ? Number(customPort.value) : Number(portChoice.value)
+    access.value = await api(`/api/v1/databases/${id.value}/access`, {
+      method: 'PUT',
+      body: { enabled, port },
+    })
+    notice.value = enabled ? `External port ${access.value.external_port} is open.` : 'External port closed.'
+    portChoice.value = ''
+    customPort.value = null
+    await loadAccess()
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    busy.value = false
   }
 }
 
@@ -117,10 +185,11 @@ let timer
 onMounted(() => {
   load()
   loadLogs()
+  loadAccess()
   timer = setInterval(() => { load(); loadLogs() }, 5000)
 })
 onUnmounted(() => clearInterval(timer))
-watch(id, () => { loading.value = true; load(); loadLogs() })
+watch(id, () => { loading.value = true; load(); loadLogs(); loadAccess() })
 </script>
 
 <style scoped>
@@ -137,6 +206,9 @@ watch(id, () => { loading.value = true; load(); loadLogs() })
   min-width: 0;
 }
 .db-h2 { font-size: 15px; margin: 0 0 0.75rem; }
+.db-port-form { display: flex; flex-direction: column; gap: 0.6rem; }
+.db-port-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.db-port-form select, .db-port-form input { padding: 9px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background: #fff; color: inherit; width: 100%; box-sizing: border-box; max-width: 320px; }
 .db-dl { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr); gap: 0.5rem 1rem; margin: 0; }
 .db-dl dt { color: #6b7280; font-size: 13px; }
 .db-dl dd { margin: 0; min-width: 0; }

@@ -31,19 +31,21 @@ type RunningDB struct {
 }
 
 type DatabaseManager struct {
-	mu        sync.RWMutex
-	cfg       *config.Config
-	dbStore   *db.DatabaseStore
-	secStore  *db.SecretStore
-	vault     *security.Vault
-	postgres  *PostgresEngine
-	mysql     *MySQLEngine
-	mongodb   *MongoEngine
-	redis     *RedisEngine
-	libsql    *LibSQLEngine
-	installed []Installed
-	running   map[string]*RunningDB
-	buffers   map[string]*compute.RingBuffer
+	mu          sync.RWMutex
+	cfg         *config.Config
+	dbStore     *db.DatabaseStore
+	secStore    *db.SecretStore
+	vault       *security.Vault
+	postgres    *PostgresEngine
+	mysql       *MySQLEngine
+	mongodb     *MongoEngine
+	redis       *RedisEngine
+	libsql      *LibSQLEngine
+	installed   []Installed
+	dbExposures *db.DatabaseExposureStore
+	exp         *exposures
+	running     map[string]*RunningDB
+	buffers     map[string]*compute.RingBuffer
 }
 
 func NewDatabaseManager(
@@ -63,6 +65,7 @@ func NewDatabaseManager(
 		redis:     NewRedisEngine(),
 		libsql:    NewLibSQLEngine(),
 		installed: discoverInstalled(),
+		exp:       newExposures(),
 		running:   make(map[string]*RunningDB),
 		buffers:   make(map[string]*compute.RingBuffer),
 	}

@@ -228,3 +228,11 @@ CREATE TABLE IF NOT EXISTS dashboard_users (
     disabled            INTEGER NOT NULL DEFAULT 0,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Public ports opened for a database. The agent forwards the public port to the database's
+-- loopback port.
+CREATE TABLE IF NOT EXISTS database_exposures (
+    db_id               TEXT PRIMARY KEY,
+    public_port         INTEGER NOT NULL UNIQUE,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

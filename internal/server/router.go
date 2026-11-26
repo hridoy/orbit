@@ -46,6 +46,7 @@ type Server struct {
 	integrations *IntegrationsHandler
 	tlsEngine    *tlsengine.Engine
 	databaseHdr  *database.DatabaseHandler
+	dbManager    *database.DatabaseManager
 	s3Engine     *s3.S3Engine
 	meter        *proxy.BandwidthMeter
 	telemetryHdr *telemetry.TelemetryBroadcaster
@@ -91,7 +92,7 @@ func NewServer(
 	computeHandler := compute.NewComputeHandler(appStore, secStore, cgroups, supervisor, deployer)
 	gitHandler := compute.NewGitHandler(cfg, appStore, db.NewAppSourceStore(dbConn), supervisor, deployer)
 
-	dbManager := database.NewDatabaseManager(cfg, dbStore, secStore, vault)
+	dbManager := database.NewDatabaseManager(cfg, dbStore, secStore, vault).WithExposures(db.NewDatabaseExposureStore(dbConn))
 	databaseHandler := database.NewDatabaseHandler(dbStore, dbManager, vault)
 
 	s3Engine := s3.NewS3Engine(cfg, storageStore, tokenMgr)
@@ -124,6 +125,7 @@ func NewServer(
 		integrations: NewIntegrationsHandler(integrationMgr),
 		tlsEngine:    tlsEngine,
 		databaseHdr:  databaseHandler,
+		dbManager:    dbManager,
 		s3Engine:     s3Engine,
 		meter:        meter,
 		telemetryHdr: telemetryHandler,
@@ -227,6 +229,7 @@ func (s *Server) ListenAndServe() error {
 	// Serve apps publicly on port 80 (ACME challenges and redirects) and port 443 (HTTPS).
 	go s.startPublicProxy()
 	go s.tlsEngine.RunRenewals(context.Background())
+	go s.dbManager.RestoreExposures()
 
 	s.httpServer = &http.Server{
 		Addr:              s.cfg.ListenAddr,
