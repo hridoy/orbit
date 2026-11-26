@@ -18,6 +18,7 @@ const enginesRoot = "/opt/orbit/engines"
 
 // Install states shown to the dashboard.
 const (
+	StatusQueued     = "queued"
 	StatusInstalling = "installing"
 	StatusFailed     = "failed"
 )
@@ -30,12 +31,19 @@ type installJob struct {
 }
 
 type installer struct {
-	mu   sync.Mutex
-	jobs map[string]*installJob // key: engine/version
+	mu    sync.Mutex
+	jobs  map[string]*installJob // key: engine/version
+	queue chan func()            // installs run one at a time: they are CPU and disk heavy
 }
 
 func newInstaller() *installer {
-	return &installer{jobs: map[string]*installJob{}}
+	in := &installer{jobs: map[string]*installJob{}, queue: make(chan func(), 64)}
+	go func() {
+		for fn := range in.queue {
+			fn()
+		}
+	}()
+	return in
 }
 
 func jobKey(engine, version string) string { return engine + "/" + version }
@@ -63,15 +71,19 @@ func (m *DatabaseManager) StartInstall(engine, version string) error {
 	}
 	in := m.installer
 	in.mu.Lock()
-	if j := in.jobs[jobKey(engine, version)]; j != nil && j.Status == StatusInstalling {
+	if j := in.jobs[jobKey(engine, version)]; j != nil && (j.Status == StatusInstalling || j.Status == StatusQueued) {
 		in.mu.Unlock()
 		return fmt.Errorf("%s %s is already installing", engine, version)
 	}
-	job := &installJob{Status: StatusInstalling}
+	job := &installJob{Status: StatusQueued}
 	in.jobs[jobKey(engine, version)] = job
 	in.mu.Unlock()
 
-	go func() {
+	in.queue <- func() {
+		in.mu.Lock()
+		job.Status = StatusInstalling
+		in.mu.Unlock()
+
 		err := runInstall(entry, job)
 		in.mu.Lock()
 		defer in.mu.Unlock()
@@ -84,7 +96,7 @@ func (m *DatabaseManager) StartInstall(engine, version string) error {
 		delete(in.jobs, jobKey(engine, version))
 		m.RefreshInstalled()
 		log.Printf("✅ installed %s %s", engine, version)
-	}()
+	}
 	return nil
 }
 
