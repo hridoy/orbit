@@ -41,23 +41,23 @@
         </thead>
         <tbody>
           <tr v-for="m in filteredMembers" :key="m.id">
-            <td>
+            <td data-label="Member">
               <div style="display: flex; align-items: center; gap: 0.65rem;">
                 <div class="user-avatar-initials" :style="{ background: m.color }">{{ m.initials }}</div>
                 <strong>{{ m.name }}</strong>
               </div>
             </td>
-            <td>{{ m.email }}</td>
-            <td><span class="badge-tag-beta">{{ m.role }}</span></td>
-            <td>{{ m.groups }}</td>
-            <td>
+            <td data-label="Email">{{ m.email }}</td>
+            <td data-label="Role"><span class="badge-tag-beta">{{ m.role }}</span></td>
+            <td data-label="Groups">{{ m.groups }}</td>
+            <td data-label="2FA">
               <span class="cf-pill" :class="m.twoFactor ? 'active' : 'stopped'">
                 <span class="status-dot"></span>
                 <span>{{ m.twoFactor ? 'Enforced' : 'Disabled' }}</span>
               </span>
             </td>
-            <td>{{ m.lastActive }}</td>
-            <td>
+            <td data-label="Last active">{{ m.lastActive }}</td>
+            <td data-label="Actions">
               <div style="display: flex; gap: 0.35rem;">
                 <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="manageMember(m)">Manage</button>
                 <button 
@@ -174,3 +174,27 @@ function manageMember(m) {
   alert(`Opening permissions drawer for ${m.name} (${m.email})`)
 }
 </script>
+
+<style scoped>
+@media (max-width: 680px) {
+  .kumo-table-container { overflow: visible; }
+  .kumo-table thead { display: none; }
+  .kumo-table, .kumo-table tbody { display: block; width: 100%; }
+  .kumo-table tr {
+    display: block; border: 1px solid var(--kumo-border, #e2e4e8); border-radius: 10px;
+    padding: 0.75rem; margin-bottom: 0.75rem; background: var(--kumo-base, #fff); box-sizing: border-box;
+  }
+  .kumo-table td {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem;
+    border: 0; padding: 0.35rem 0; text-align: right; overflow-wrap: anywhere; min-width: 0;
+  }
+  .kumo-table td::before {
+    content: attr(data-label); color: #6b7280; font-size: 12px; text-align: left; flex: 0 0 auto;
+  }
+  .kumo-table td:first-child { justify-content: flex-start; }
+  .kumo-table td:first-child::before { content: none; }
+  .kumo-table td[data-label="Actions"] { justify-content: flex-start; }
+  .kumo-table td[data-label="Actions"]::before { content: none; }
+  .kumo-table td[data-label="Actions"] > * { flex: 1 1 auto; }
+}
+</style>
