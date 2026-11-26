@@ -125,3 +125,119 @@ body.sidebar-mini .sidebar-search-btn {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   Phone fixes: let grid/flex children shrink instead of pushing the page
+   past 375px, and tighten paddings on small screens.
+   ========================================================================== */
+.cf-r2-split-layout > *,
+.cf-r2-page-wrapper,
+.kumo-content,
+.kumo-main {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 680px) {
+  .cf-r2-main-content {
+    padding: 1.25rem 1rem 1.5rem 1rem;
+    gap: 1.25rem;
+  }
+  .cf-r2-inner-bounded {
+    max-width: 100%;
+  }
+  .cf-r2-hero-row {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 680px) {
+  .kumo-card,
+  .ui-kit-section,
+  .kumo-card-header,
+  .kumo-card-body {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .kumo-card-body {
+    overflow-x: auto;
+  }
+  .kumo-table-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+/* Phones: grids with fixed-width tracks (e.g. minmax(360px, 1fr)) switch to one column. */
+@media (max-width: 680px) {
+  .kumo-content [style*="grid-template-columns"],
+  .kumo-content .kumo-grid,
+  .kumo-content .cf-grid,
+  .kumo-content .ui-kit-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Phones: wide tables scroll sideways inside their card instead of pushing the page. */
+@media (max-width: 680px) {
+  .kumo-content table,
+  .kumo-content .kumo-table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .kumo-content table thead,
+  .kumo-content table tbody,
+  .kumo-content table tr {
+    display: table;
+    width: 100%;
+    table-layout: auto;
+  }
+}
+
+/* Phones: tab rows wrap instead of running off the right edge. */
+@media (max-width: 680px) {
+  .cf-tab-nav {
+    flex-wrap: wrap;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+/* Phones: header actions and stat rows wrap instead of running off the edge. */
+@media (max-width: 680px) {
+  .kumo-card-header,
+  .kumo-card-actions,
+  .kumo-card-header > *,
+  .kumo-stat-row,
+  .kumo-page-actions,
+  .kumo-page-header {
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .kumo-card-header,
+  .kumo-card {
+    min-width: 0;
+  }
+  .kumo-stat-delta {
+    white-space: normal;
+  }
+}
+
+/* Phones: catch-all for flex rows that would overflow. Flex children may shrink and wrap. */
+@media (max-width: 680px) {
+  .kumo-content .kumo-stat-row,
+  .kumo-content [class*="-row"],
+  .kumo-content [class*="-actions"],
+  .kumo-content [class*="-toolbar"] {
+    flex-wrap: wrap;
+  }
+  .kumo-content [class*="-row"] > *,
+  .kumo-content [class*="-actions"] > *,
+  .kumo-content [class*="-toolbar"] > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
