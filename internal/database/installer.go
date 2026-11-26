@@ -116,7 +116,12 @@ func runInstall(e CatalogEntry, job *installJob) error {
 	return fmt.Errorf("unknown install method %q", e.Method)
 }
 
+// aptMu serializes apt: two installs at once fight over the dpkg lock and one fails.
+var aptMu sync.Mutex
+
 func aptInstall(pkg string, logf func(string, ...any)) error {
+	aptMu.Lock()
+	defer aptMu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "apt-get", "install", "-y", "-q", pkg)
