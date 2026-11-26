@@ -30,6 +30,7 @@ func NewDatabaseHandler(
 
 func (h *DatabaseHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/databases", h.handleProvision)
+	mux.HandleFunc("GET /api/v1/databases/engines", h.handleEngines)
 	mux.HandleFunc("GET /api/v1/databases", h.handleList)
 	mux.HandleFunc("GET /api/v1/databases/{id}", h.handleGet)
 	mux.HandleFunc("POST /api/v1/databases/{id}/start", h.handleStart)
@@ -54,6 +55,9 @@ func (h *DatabaseHandler) handleProvision(w http.ResponseWriter, r *http.Request
 	var body struct {
 		Name       string `json:"name"`
 		Engine     string `json:"engine"`      // postgres, mysql, mariadb, mongodb, redis, libsql
+		Version    string `json:"version"`     // an installed version, or empty for the default
+		Username   string `json:"username"`    // optional; generated when empty
+		Password   string `json:"password"`    // optional; generated when empty
 		RAMProfile string `json:"ram_profile"` // micro, standard, heavy, unlimited
 	}
 
@@ -72,7 +76,7 @@ func (h *DatabaseHandler) handleProvision(w http.ResponseWriter, r *http.Request
 		profile = ProfileMicro
 	}
 
-	instance, rawPassword, err := h.manager.ProvisionDatabase(r.Context(), body.Name, body.Engine, profile)
+	instance, rawPassword, err := h.manager.ProvisionDatabase(r.Context(), body.Name, body.Engine, body.Version, body.Username, body.Password, profile)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -188,4 +192,27 @@ func (h *DatabaseHandler) handleGetLogs(w http.ResponseWriter, r *http.Request) 
 		"db_id": dbID,
 		"lines": lines,
 	})
+}
+
+// handleEngines lists the engines this server can run and the versions installed for each.
+func (h *DatabaseHandler) handleEngines(w http.ResponseWriter, r *http.Request) {
+	versions := h.manager.Versions()
+	type engine struct {
+		Engine   string   `json:"engine"`
+		Name     string   `json:"name"`
+		Versions []string `json:"versions"`
+	}
+	names := map[string]string{
+		"postgres": "PostgreSQL", "mysql": "MySQL", "mariadb": "MariaDB",
+		"mongodb": "MongoDB", "redis": "Redis", "libsql": "LibSQL (SQLite)",
+	}
+	out := []engine{}
+	for _, e := range []string{"postgres", "mysql", "mariadb", "mongodb", "redis", "libsql"} {
+		v := versions[e]
+		if v == nil {
+			v = []string{}
+		}
+		out = append(out, engine{Engine: e, Name: names[e], Versions: v})
+	}
+	writeJSON(w, http.StatusOK, out)
 }

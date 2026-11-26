@@ -26,9 +26,27 @@
       </label>
       <label>
         Engine
-        <select v-model="form.engine">
-          <option v-for="e in engines" :key="e.value" :value="e.value">{{ e.label }}</option>
+        <select v-model="form.engine" @change="pickEngine">
+          <option v-for="e in engines" :key="e.engine" :value="e.engine">{{ e.name }}</option>
         </select>
+      </label>
+      <label>
+        Version
+        <select v-model="form.version" :disabled="!currentVersions.length">
+          <option v-for="v in currentVersions" :key="v" :value="v">{{ v }}</option>
+          <option v-if="!currentVersions.length" value="">None installed on this server</option>
+        </select>
+        <span class="db-muted">Only versions installed on this server are listed.</span>
+      </label>
+      <label>
+        Username
+        <input v-model="form.username" maxlength="32" autocomplete="off"
+               placeholder="Leave empty to generate one" />
+      </label>
+      <label>
+        Password
+        <input v-model="form.password" type="password" maxlength="128" autocomplete="new-password"
+               placeholder="Leave empty to generate one" />
       </label>
       <label>
         Size
@@ -36,12 +54,13 @@
           <option v-for="p in profiles" :key="p.value" :value="p.value">{{ p.label }}</option>
         </select>
       </label>
-      <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy">
+      <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy || !form.version">
         {{ busy ? 'Creating…' : 'Create database' }}
       </button>
       <div v-if="created" class="db-card db-created">
-        <strong>Saved. Copy this password now, it is shown only here.</strong>
-        <code class="db-uri">{{ created.password }}</code>
+        <strong>Saved. Copy these now, the password is shown only here.</strong>
+        <code class="db-uri">Username: {{ created.database.admin_user }}</code>
+        <code class="db-uri">Password: {{ created.password }}</code>
         <code class="db-uri">{{ created.tcp_uri }}</code>
       </div>
     </form>
@@ -71,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { api } from '@/composables/api.js'
 
 const databases = ref([])
@@ -81,21 +100,31 @@ const showCreate = ref(false)
 const busy = ref(false)
 const created = ref(null)
 
-const engines = [
-  { value: 'postgres', label: 'PostgreSQL' },
-  { value: 'mysql', label: 'MySQL' },
-  { value: 'mariadb', label: 'MariaDB' },
-  { value: 'mongodb', label: 'MongoDB' },
-  { value: 'redis', label: 'Redis' },
-  { value: 'libsql', label: 'LibSQL (SQLite)' },
-]
+const engines = ref([])
 const profiles = [
   { value: 'micro', label: 'Micro (about 32 MB)' },
   { value: 'standard', label: 'Standard (about 128 MB)' },
   { value: 'heavy', label: 'Heavy (about 512 MB)' },
   { value: 'unlimited', label: 'Unlimited (no cap)' },
 ]
-const form = ref({ name: '', engine: 'postgres', ram_profile: 'micro' })
+const form = ref({ name: '', engine: '', version: '', username: '', password: '', ram_profile: 'micro' })
+const currentVersions = computed(() => engines.value.find((e) => e.engine === form.value.engine)?.versions || [])
+
+const pickEngine = () => {
+  form.value.version = currentVersions.value[0] || ''
+}
+
+const loadEngines = async () => {
+  try {
+    engines.value = await api('/api/v1/databases/engines')
+    if (!form.value.engine && engines.value.length) {
+      form.value.engine = engines.value[0].engine
+      pickEngine()
+    }
+  } catch (e) {
+    error.value = e.message
+  }
+}
 
 const load = async () => {
   try {
@@ -113,9 +142,14 @@ const create = async () => {
   error.value = ''
   created.value = null
   try {
-    const res = await api('/api/v1/databases', { method: 'POST', body: form.value })
+    const body = { ...form.value }
+    if (!body.username) delete body.username
+    if (!body.password) delete body.password
+    const res = await api('/api/v1/databases', { method: 'POST', body })
     created.value = res
     form.value.name = ''
+    form.value.username = ''
+    form.value.password = ''
     await load()
   } catch (e) {
     error.value = e.message
@@ -126,6 +160,7 @@ const create = async () => {
 
 let timer
 onMounted(() => {
+  loadEngines()
   load()
   timer = setInterval(load, 5000)
 })
@@ -159,4 +194,5 @@ onUnmounted(() => clearInterval(timer))
 .db-error { color: #b91c1c; font-size: 13px; margin: 0; }
 .db-created { display: flex; flex-direction: column; gap: 0.5rem; background: #fffbeb; }
 .db-uri { font-size: 12px; word-break: break-all; white-space: pre-wrap; }
+.db-form select:disabled { opacity: 0.6; }
 </style>

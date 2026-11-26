@@ -111,7 +111,7 @@ func TestProvisionAllEngines(t *testing.T) {
 
 	for _, tc := range engines {
 		t.Run(tc.engine, func(t *testing.T) {
-			instance, password, err := mgr.ProvisionDatabase(ctx, tc.engine+"_db", tc.engine, ProfileMicro)
+			instance, password, err := mgr.ProvisionDatabase(ctx, tc.engine+"_db", tc.engine, "", "", "", ProfileMicro)
 			if err != nil {
 				t.Fatalf("ProvisionDatabase failed for %s: %v", tc.engine, err)
 			}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sync"
 	"syscall"
 	"time"
@@ -30,18 +31,19 @@ type RunningDB struct {
 }
 
 type DatabaseManager struct {
-	mu       sync.RWMutex
-	cfg      *config.Config
-	dbStore  *db.DatabaseStore
-	secStore *db.SecretStore
-	vault    *security.Vault
-	postgres *PostgresEngine
-	mysql    *MySQLEngine
-	mongodb  *MongoEngine
-	redis    *RedisEngine
-	libsql   *LibSQLEngine
-	running  map[string]*RunningDB
-	buffers  map[string]*compute.RingBuffer
+	mu        sync.RWMutex
+	cfg       *config.Config
+	dbStore   *db.DatabaseStore
+	secStore  *db.SecretStore
+	vault     *security.Vault
+	postgres  *PostgresEngine
+	mysql     *MySQLEngine
+	mongodb   *MongoEngine
+	redis     *RedisEngine
+	libsql    *LibSQLEngine
+	installed []Installed
+	running   map[string]*RunningDB
+	buffers   map[string]*compute.RingBuffer
 }
 
 func NewDatabaseManager(
@@ -51,17 +53,18 @@ func NewDatabaseManager(
 	vault *security.Vault,
 ) *DatabaseManager {
 	return &DatabaseManager{
-		cfg:      cfg,
-		dbStore:  dbStore,
-		secStore: secStore,
-		vault:    vault,
-		postgres: NewPostgresEngine(),
-		mysql:    NewMySQLEngine(),
-		mongodb:  NewMongoEngine(),
-		redis:    NewRedisEngine(),
-		libsql:   NewLibSQLEngine(),
-		running:  make(map[string]*RunningDB),
-		buffers:  make(map[string]*compute.RingBuffer),
+		cfg:       cfg,
+		dbStore:   dbStore,
+		secStore:  secStore,
+		vault:     vault,
+		postgres:  NewPostgresEngine(),
+		mysql:     NewMySQLEngine(),
+		mongodb:   NewMongoEngine(),
+		redis:     NewRedisEngine(),
+		libsql:    NewLibSQLEngine(),
+		installed: discoverInstalled(),
+		running:   make(map[string]*RunningDB),
+		buffers:   make(map[string]*compute.RingBuffer),
 	}
 }
 
@@ -109,6 +112,9 @@ func (m *DatabaseManager) ProvisionDatabase(
 	ctx context.Context,
 	name string,
 	engine string,
+	version string,
+	username string,
+	password string,
 	ramProfile RAMProfile,
 ) (*db.DatabaseInstance, string, error) {
 	var startPort int
@@ -135,11 +141,30 @@ func (m *DatabaseManager) ProvisionDatabase(
 		return nil, "", err
 	}
 
+	if version == "" {
+		version = nativeVersion
+	}
+	if _, err := m.pick(engine, version); err != nil {
+		return nil, "", err
+	}
+
+	// Username and password come from the operator or are generated. Redis always uses "default".
 	adminUser := "orbit_admin"
+	if username != "" {
+		if !dbUserRe.MatchString(username) {
+			return nil, "", fmt.Errorf("username must be 2 to 32 characters: lowercase letters, digits, underscore, starting with a letter")
+		}
+		adminUser = username
+	}
 	if engine == "redis" {
 		adminUser = "default"
 	}
-	rawPassword := generateRandomPassword(24)
+	rawPassword := password
+	if rawPassword == "" {
+		rawPassword = generateRandomPassword(24)
+	} else if len(rawPassword) < 8 || len(rawPassword) > 128 {
+		return nil, "", fmt.Errorf("password must be 8 to 128 characters")
+	}
 
 	// Encrypt password via AES-256-GCM
 	cipherB64, nonceB64, err := m.vault.Encrypt([]byte(rawPassword))
@@ -154,31 +179,55 @@ func (m *DatabaseManager) ProvisionDatabase(
 	// Run engine-specific provisioning
 	switch engine {
 	case "postgres":
-		if err := m.postgres.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile); err != nil {
+		pe, err := m.postgresFor(version)
+		if err != nil {
+			return nil, "", err
+		}
+		if err := pe.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile); err != nil {
 			return nil, "", fmt.Errorf("postgres provision error: %w", err)
 		}
 	case "mysql":
 		socketPath = filepath.Join(baseDir, "run", "mysql.sock")
-		if err := m.mysql.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile, false); err != nil {
+		me, err := m.mysqlFor("mysql", version)
+		if err != nil {
+			return nil, "", err
+		}
+		if err := me.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile, false); err != nil {
 			return nil, "", fmt.Errorf("mysql provision error: %w", err)
 		}
 	case "mariadb":
 		socketPath = filepath.Join(baseDir, "run", "mariadb.sock")
-		if err := m.mysql.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile, true); err != nil {
+		me, err := m.mysqlFor("mariadb", version)
+		if err != nil {
+			return nil, "", err
+		}
+		if err := me.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile, true); err != nil {
 			return nil, "", fmt.Errorf("mariadb provision error: %w", err)
 		}
 	case "mongodb":
-		if err := m.mongodb.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile); err != nil {
+		mo, err := m.mongoFor(version)
+		if err != nil {
+			return nil, "", err
+		}
+		if err := mo.Provision(ctx, baseDir, adminUser, rawPassword, port, ramProfile); err != nil {
 			return nil, "", fmt.Errorf("mongodb provision error: %w", err)
 		}
 	case "redis":
 		socketPath = filepath.Join(baseDir, "run", "redis.sock")
-		if err := m.redis.Provision(ctx, baseDir, rawPassword, port, ramProfile); err != nil {
+		re, err := m.redisFor(version)
+		if err != nil {
+			return nil, "", err
+		}
+		if err := re.Provision(ctx, baseDir, rawPassword, port, ramProfile); err != nil {
 			return nil, "", fmt.Errorf("redis provision error: %w", err)
 		}
 	case "libsql":
 		socketPath = filepath.Join(baseDir, "data", "libsql.db")
-		if err := m.libsql.Provision(ctx, baseDir, rawPassword, port, ramProfile); err != nil {
+		le, err := m.libsqlFor(version)
+		if err != nil {
+			return nil, "", err
+		}
+		if err := le.Provision(ctx, baseDir, rawPassword, port, ramProfile); err != nil {
 			return nil, "", fmt.Errorf("libsql provision error: %w", err)
 		}
 	}
@@ -187,7 +236,7 @@ func (m *DatabaseManager) ProvisionDatabase(
 		DBID:              dbID,
 		Name:              name,
 		Engine:            engine,
-		Version:           "native",
+		Version:           version,
 		NodeID:            m.cfg.NodeID,
 		Port:              port,
 		SocketPath:        socketPath,
@@ -233,17 +282,47 @@ func (m *DatabaseManager) StartDatabase(ctx context.Context, dbID string) error 
 
 	switch instance.Engine {
 	case "postgres":
-		cmd, err = m.postgres.Start(childCtx, baseDir, rb)
+		pe, perr := m.postgresFor(instance.Version)
+		if perr != nil {
+			cancel()
+			return perr
+		}
+		cmd, err = pe.Start(childCtx, baseDir, rb)
 	case "mysql":
-		cmd, err = m.mysql.Start(childCtx, baseDir, rb, false)
+		me, merr := m.mysqlFor("mysql", instance.Version)
+		if merr != nil {
+			cancel()
+			return merr
+		}
+		cmd, err = me.Start(childCtx, baseDir, rb, false)
 	case "mariadb":
-		cmd, err = m.mysql.Start(childCtx, baseDir, rb, true)
+		me, merr := m.mysqlFor("mariadb", instance.Version)
+		if merr != nil {
+			cancel()
+			return merr
+		}
+		cmd, err = me.Start(childCtx, baseDir, rb, true)
 	case "mongodb":
-		cmd, err = m.mongodb.Start(childCtx, baseDir, rb)
+		mo, merr := m.mongoFor(instance.Version)
+		if merr != nil {
+			cancel()
+			return merr
+		}
+		cmd, err = mo.Start(childCtx, baseDir, rb)
 	case "redis":
-		cmd, err = m.redis.Start(childCtx, baseDir, rb)
+		re, rerr := m.redisFor(instance.Version)
+		if rerr != nil {
+			cancel()
+			return rerr
+		}
+		cmd, err = re.Start(childCtx, baseDir, rb)
 	case "libsql":
-		cmd, err = m.libsql.Start(childCtx, baseDir, rb, instance.Port)
+		le, lerr := m.libsqlFor(instance.Version)
+		if lerr != nil {
+			cancel()
+			return lerr
+		}
+		cmd, err = le.Start(childCtx, baseDir, rb, instance.Port)
 	default:
 		cancel()
 		return fmt.Errorf("unknown engine %s", instance.Engine)
@@ -375,3 +454,5 @@ func generateRandomPassword(length int) string {
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)[:length]
 }
+
+var dbUserRe = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}$`)
