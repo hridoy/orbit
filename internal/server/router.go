@@ -177,6 +177,9 @@ func (s *Server) ListenAndServe() error {
 	// Bring back apps that were live before the last restart, without blocking the listener.
 	go s.computeHdr.RestoreApps()
 
+	// Serve apps publicly on port 80 (HTTP; HTTPS comes later).
+	go s.startPublicProxy()
+
 	s.httpServer = &http.Server{
 		Addr:              s.cfg.ListenAddr,
 		Handler:           s.Handler(),
