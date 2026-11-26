@@ -229,6 +229,10 @@ func GenerateMongoConf(port int, socketDir, dataDir string, profile RAMProfile) 
 	default: // Micro
 		cacheSizeGB = 0.05 // ~50MB cache limit
 	}
+	// MongoDB refuses a WiredTiger cache below 0.25 GB, so small profiles use the minimum.
+	if cacheSizeGB < 0.25 {
+		cacheSizeGB = 0.25
+	}
 
 	return fmt.Sprintf(`# Orbit Sovereign Auto-Tuned mongod.conf (Profile: %s)
 systemLog:
