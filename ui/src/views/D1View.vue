@@ -45,8 +45,13 @@
       </label>
       <label>
         Password
-        <input v-model="form.password" type="password" maxlength="128" autocomplete="new-password"
-               placeholder="Leave empty to generate one" />
+        <span class="db-pass">
+          <input v-model="form.password" :type="showPass ? 'text' : 'password'" maxlength="128" autocomplete="new-password"
+                 placeholder="Leave empty to generate one" />
+          <button type="button" class="db-eye" :aria-label="showPass ? 'Hide password' : 'Show password'" @click="showPass = !showPass">
+            {{ showPass ? 'Hide' : 'Show' }}
+          </button>
+        </span>
       </label>
       <label>
         Size
@@ -59,9 +64,9 @@
       </button>
       <div v-if="created" class="db-card db-created">
         <strong>Saved. Copy these now, the password is shown only here.</strong>
-        <code class="db-uri">Username: {{ created.database.admin_user }}</code>
-        <code class="db-uri">Password: {{ created.password }}</code>
-        <code class="db-uri">{{ created.tcp_uri }}</code>
+        <div class="db-kv"><span>Username</span><SecretField :value="created.database.admin_user" /></div>
+        <div class="db-kv"><span>Password</span><SecretField :value="created.password" :revealed="false" /></div>
+        <div class="db-kv"><span>Connection</span><SecretField :value="created.tcp_uri" :revealed="false" /></div>
       </div>
     </form>
 
@@ -92,12 +97,14 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { api } from '@/composables/api.js'
+import SecretField from '@/components/SecretField.vue'
 
 const databases = ref([])
 const loading = ref(true)
 const error = ref('')
 const showCreate = ref(false)
 const busy = ref(false)
+const showPass = ref(false)
 const created = ref(null)
 
 const engines = ref([])
@@ -195,4 +202,9 @@ onUnmounted(() => clearInterval(timer))
 .db-created { display: flex; flex-direction: column; gap: 0.5rem; background: #fffbeb; }
 .db-uri { font-size: 12px; word-break: break-all; white-space: pre-wrap; }
 .db-form select:disabled { opacity: 0.6; }
+.db-pass { display: flex; gap: 0.5rem; }
+.db-pass input { flex: 1 1 auto; min-width: 0; }
+.db-eye { padding: 0 12px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: inherit; cursor: pointer; font-size: 13px; }
+.db-kv { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.db-kv > span:first-child { color: #6b7280; }
 </style>

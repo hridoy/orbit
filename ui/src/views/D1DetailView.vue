@@ -32,11 +32,11 @@
         <h2 class="db-h2">Connection</h2>
         <dl class="db-dl">
           <dt>Engine</dt><dd>{{ info.database.engine }} {{ info.database.version }}</dd>
-          <dt>Admin user</dt><dd>{{ info.database.admin_user }}</dd>
+          <dt>Username</dt><dd><SecretField :value="info.database.admin_user" /></dd>
           <dt>Port (this server only)</dt><dd>{{ info.database.port }}</dd>
           <dt>Size</dt><dd>{{ info.database.ram_profile }}</dd>
-          <dt>Password</dt><dd><code class="db-uri">{{ info.password }}</code></dd>
-          <dt>Connection string</dt><dd><code class="db-uri">{{ info.tcp_uri }}</code></dd>
+          <dt>Password</dt><dd><SecretField :value="info.password" :revealed="false" /></dd>
+          <dt>Connection string</dt><dd><SecretField :value="info.tcp_uri" :revealed="false" /></dd>
         </dl>
         <p class="db-muted">The database listens on 127.0.0.1 only. Apps on this server connect with the string above.</p>
       </div>
@@ -54,6 +54,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/composables/api.js'
+import SecretField from '@/components/SecretField.vue'
 
 const route = useRoute()
 const router = useRouter()
