@@ -25,7 +25,7 @@
           :class="{ active: accountDropdownOpen }"
           @click="accountDropdownOpen = !accountDropdownOpen"
         >
-          <span class="account-switcher-text">{{ mockData.account.name }}</span>
+          <span class="account-switcher-text">{{ server.hostname || 'This server' }}</span>
           <CfIcon name="cis-chevron-grabber-vertical" size="14" class="caret-icon" />
         </button>
 
@@ -38,8 +38,8 @@
           <div class="account-item selected">
             <div class="account-avatar-dot"></div>
             <div style="flex: 1; min-width: 0;">
-              <div class="account-item-title">{{ mockData.account.name }}</div>
-              <div class="account-item-id">{{ mockData.account.id }}</div>
+              <div class="account-item-title">{{ server.hostname || 'This server' }}</div>
+              <div class="account-item-id">{{ server.nodeId }}</div>
             </div>
             <CfIcon name="cis-checkmark-1-medium" size="14" customClass="text-kumo-brand" />
           </div>
@@ -73,7 +73,7 @@
           <!-- Section: DOMAIN -->
           <div v-if="!sidebarMini" class="sidebar-section-header">Domain</div>
 
-          <router-link to="/zones/northlab.dev" class="sidebar-nav-item" active-class="active">
+          <router-link to="/ssl" class="sidebar-nav-item" active-class="active">
             <CfIcon name="cis-globe" size="18" />
             <span v-if="!sidebarMini">Domains</span>
           </router-link>
@@ -185,7 +185,7 @@
           </router-link>
 
           <!-- Zone Overview -->
-          <router-link to="/zones/northlab.dev" class="sidebar-nav-item" active-class="active" exact>
+          <router-link to="/ssl" class="sidebar-nav-item" active-class="active" exact>
             <CfIcon name="cis-globe" size="18" />
             <span>Overview</span>
           </router-link>
@@ -249,7 +249,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { mockData } from '@/data/mockData.js'
+import { server } from '@/composables/serverState.js'
 import { useTheme } from '@/composables/useTheme.js'
 
 const route = useRoute()

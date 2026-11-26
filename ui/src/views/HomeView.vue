@@ -1,581 +1,97 @@
 <template>
-  <div class="cf-account-home">
-    <!-- 1. Centered Hero Search Area (VPS Controller Command Center) -->
-    <div class="cf-home-hero">
-      <div class="cf-hero-pill">
-        <span class="cf-dir-status-dot"></span>
-        <span>{{ mockData.account.hostname }} · {{ mockData.account.plan }}</span>
+  <div class="home-page">
+    <div class="home-hero">
+      <div class="home-pill">
+        <span class="home-dot"></span>
+        <span>{{ server.hostname || 'This server' }}<template v-if="server.os"> · {{ server.os }} {{ server.arch }}</template></span>
       </div>
-
-      <h1 class="cf-hero-title">VPS Controller</h1>
-
-      <button type="button" class="cf-hero-search-bar" @click="openCommandPalette">
-        <span class="cf-hero-search-left">
-          <CfIcon name="search" size="16" style="color: #71717a;" />
-          <span class="cf-hero-search-placeholder">Search domains, apps, databases, or storage buckets...</span>
-        </span>
-        <span class="cf-hero-kbd-group">
-          <kbd class="cf-kbd">⌘</kbd>
-          <kbd class="cf-kbd">K</kbd>
-        </span>
-      </button>
+      <h1 class="home-title">VPS Controller</h1>
+      <p class="home-sub">Apps, databases and domains running on this server.</p>
     </div>
 
-    <!-- 2. 3-Column Borderless Quick Directory (Domains | Apps | Storage & DB) -->
-    <div class="cf-quick-dir-grid">
-      <!-- Column 1: Domains & Reverse Proxy -->
-      <div class="cf-dir-col">
-        <div class="cf-dir-col-head">
-          <router-link to="/zones/northlab.dev" class="cf-dir-col-title">
-            <span>Domains</span>
-            <CfIcon name="chevron-right" size="13" />
-          </router-link>
-          <CfButton variant="ghost" size="sm" icon="more-horizontal" icon-only title="Domain options" />
+    <div class="home-grid">
+      <section class="home-card">
+        <div class="home-card-head">
+          <router-link to="/ssl" class="home-link">Domains</router-link>
+          <router-link to="/settings" class="home-link-muted">Settings</router-link>
         </div>
-        <div class="cf-dir-list">
-          <router-link
-            v-for="d in mockData.domains.slice(0, 4)"
-            :key="d.id"
-            to="/zones/northlab.dev"
-            class="cf-dir-row"
-          >
-            <div class="cf-dir-row-left">
-              <span class="cf-dir-status-dot"></span>
-              <span class="cf-dir-row-name">{{ d.name }}</span>
-            </div>
-            <div class="cf-dir-row-right">
-              <CfBadge variant="neutral" size="sm">{{ d.plan }}</CfBadge>
-              <CfIcon name="chevron-right" size="13" class="cf-dir-chevron" />
-            </div>
-          </router-link>
-        </div>
-      </div>
+        <p v-if="!server.domains.length && !server.panelDomain" class="home-empty">No domains yet. Add one in SSL/TLS.</p>
+        <ul class="home-list">
+          <li v-if="server.panelDomain">
+            <router-link to="/settings">{{ server.panelDomain }}</router-link>
+            <span class="home-tag">panel</span>
+          </li>
+          <li v-for="d in server.domains" :key="d.domain">
+            <router-link to="/ssl">{{ d.domain }}</router-link>
+            <span :class="['home-tag', d.status]">{{ d.status }}</span>
+          </li>
+        </ul>
+      </section>
 
-      <!-- Column 2: Apps & Services -->
-      <div class="cf-dir-col">
-        <div class="cf-dir-col-head">
-          <router-link to="/workers" class="cf-dir-col-title">
-            <span>Apps & Services</span>
-            <CfIcon name="chevron-right" size="13" />
-          </router-link>
-          <CfButton variant="ghost" size="sm" icon="more-horizontal" icon-only title="Service options" />
+      <section class="home-card">
+        <div class="home-card-head">
+          <router-link to="/workers" class="home-link">Apps</router-link>
+          <span class="home-count">{{ server.apps.length }}</span>
         </div>
-        <div class="cf-dir-list">
-          <router-link
-            v-for="w in mockData.workers"
-            :key="w.app_id"
-            :to="`/workers/${w.app_id}`"
-            class="cf-dir-row"
-          >
-            <div class="cf-dir-row-left">
-              <CfIcon name="edgeworker" size="14" style="color: #f6821f;" />
-              <span class="cf-dir-row-name">{{ w.name }}</span>
-            </div>
-            <div class="cf-dir-row-right">
-              <span class="cf-dir-meta">{{ w.invocations_24h }} req</span>
-              <CfIcon name="chevron-right" size="13" class="cf-dir-chevron" />
-            </div>
-          </router-link>
-          <router-link to="/waf" class="cf-dir-row">
-            <div class="cf-dir-row-left">
-              <CfIcon name="security-waf" size="14" style="color: #10b981;" />
-              <span class="cf-dir-row-name">UFW Firewall & Proxy</span>
-            </div>
-            <div class="cf-dir-row-right">
-              <span class="cf-dir-meta">Active</span>
-              <CfIcon name="chevron-right" size="13" class="cf-dir-chevron" />
-            </div>
-          </router-link>
+        <p v-if="!server.apps.length" class="home-empty">No apps yet.</p>
+        <ul class="home-list">
+          <li v-for="a in server.apps" :key="a.app_id">
+            <router-link to="/workers">{{ a.name || a.app_id }}</router-link>
+            <span :class="['home-tag', a.status]">{{ a.status }}</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="home-card">
+        <div class="home-card-head">
+          <router-link to="/d1" class="home-link">Databases</router-link>
+          <span class="home-count">{{ server.databases.length }}</span>
         </div>
-      </div>
-
-      <!-- Column 3: Storage & Database -->
-      <div class="cf-dir-col">
-        <div class="cf-dir-col-head">
-          <span class="cf-dir-col-title" style="cursor: default;">
-            <span>Storage & Database</span>
-          </span>
-          <CfButton variant="ghost" size="sm" icon="more-horizontal" icon-only title="Storage & DB options" />
-        </div>
-        <div class="cf-dir-list">
-          <router-link to="/r2" class="cf-dir-row">
-            <div class="cf-dir-row-left">
-              <span class="cf-dir-prefix">Storage /</span>
-              <span class="cf-dir-row-name">Object Storage (S3)</span>
-            </div>
-            <CfIcon name="chevron-right" size="13" class="cf-dir-chevron" />
-          </router-link>
-          <router-link to="/d1" class="cf-dir-row">
-            <div class="cf-dir-row-left">
-              <span class="cf-dir-prefix">Database /</span>
-              <span class="cf-dir-row-name">SQL Databases</span>
-            </div>
-            <CfIcon name="chevron-right" size="13" class="cf-dir-chevron" />
-          </router-link>
-          <router-link to="/ssl" class="cf-dir-row">
-            <div class="cf-dir-row-left">
-              <span class="cf-dir-prefix">Domain /</span>
-              <span class="cf-dir-row-name">SSL Certificates</span>
-            </div>
-            <CfIcon name="chevron-right" size="13" class="cf-dir-chevron" />
-          </router-link>
-          <router-link to="/zero-trust" class="cf-dir-row">
-            <div class="cf-dir-row-left">
-              <span class="cf-dir-prefix">Security /</span>
-              <span class="cf-dir-row-name">SSH & Tunnels</span>
-            </div>
-            <CfIcon name="chevron-right" size="13" class="cf-dir-chevron" />
-          </router-link>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. VPS Node Status Banner -->
-    <div class="cf-announcement-banner">
-      <div class="cf-announce-left">
-        <div class="cf-announce-thumb">
-          <CfIcon name="server" size="22" style="color: #ffffff;" />
-        </div>
-        <div>
-          <div class="cf-announce-title-row">
-            <span class="cf-announce-title">{{ mockData.account.name }}</span>
-            <CfBadge variant="success" size="sm" dot>{{ mockData.account.status }}</CfBadge>
-          </div>
-          <p class="cf-announce-sub">
-            {{ mockData.account.region }} · Uptime: <strong>{{ mockData.account.uptime }}</strong> · Reverse Proxy & Auto-SSL Active
-          </p>
-        </div>
-      </div>
-      <div class="cf-announce-right" style="display: flex; gap: 0.5rem;">
-        <router-link to="/analytics" style="text-decoration: none;">
-          <CfButton variant="secondary" size="md">System Metrics</CfButton>
-        </router-link>
-        <router-link to="/workers" style="text-decoration: none;">
-          <button type="button" class="cf-orange-cta-btn">Deploy App</button>
-        </router-link>
-      </div>
-    </div>
-
-    <!-- 4. Node Telemetry Header & Sparkline Metric Grid -->
-    <div class="cf-analytics-section">
-      <div class="cf-analytics-head">
-        <h2 class="cf-section-heading">Node Telemetry</h2>
-        <div class="cf-analytics-controls">
-          <div style="width: 160px;">
-            <CfSelect v-model="analyticsRange" :options="['Last 24 hours', 'Last 1 hour', 'Last 7 days']" size="md" />
-          </div>
-          <CfButton variant="secondary" size="md" icon="refresh" icon-only title="Refresh telemetry" />
-        </div>
-      </div>
-
-      <div class="stats-overview-grid">
-        <CfStatCard
-          label="CPU Load"
-          :value="mockData.account.cpuUsage"
-          :delta="mockData.account.cpuDelta"
-          delta-type="down"
-          tooltip="Average CPU utilization across 8 vCPU cores"
-          :sparkline-data="[32, 28, 30, 26, 29, 25, 24]"
-        />
-        <CfStatCard
-          label="Memory (RAM)"
-          :value="mockData.account.ramUsage"
-          :delta="mockData.account.ramDelta"
-          delta-type="neutral"
-          tooltip="Active physical memory consumption"
-          :sparkline-data="[5.8, 6.0, 6.2, 6.1, 6.3, 6.4]"
-        />
-        <CfStatCard
-          label="NVMe Disk"
-          :value="mockData.account.diskUsage"
-          :delta="mockData.account.diskDelta"
-          delta-type="up"
-          tooltip="Root volume + S3 Object Storage usage"
-          :sparkline-data="[62, 63, 64, 65, 67, 68]"
-        />
-        <CfStatCard
-          label="Network I/O"
-          :value="mockData.account.networkIo"
-          :delta="mockData.account.networkDelta"
-          delta-type="up"
-          tooltip="Combined eth0 ingress + egress throughput"
-          :sparkline-data="[95, 110, 105, 128, 134, 142]"
-        />
-      </div>
-    </div>
-
-    <!-- 5. Running Apps & Services -->
-    <div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
-        <h2 class="cf-section-heading">Running Apps & Services ({{ mockData.workers.length }})</h2>
-        <router-link to="/workers" style="text-decoration: none;">
-          <CfButton variant="secondary" size="sm">Manage All Services →</CfButton>
-        </router-link>
-      </div>
-
-      <div class="cf-item-card-list">
-        <router-link
-          v-for="w in mockData.workers"
-          :key="w.app_id"
-          :to="`/workers/${w.app_id}`"
-          class="cf-item-card"
-          style="text-decoration: none;"
-        >
-          <div class="cf-item-card-top">
-            <div class="cf-item-card-info">
-              <div class="cf-item-card-header-row">
-                <span class="cf-item-card-title">{{ w.name }}</span>
-                <CfBadge variant="success" dot size="sm">{{ w.status }}</CfBadge>
-              </div>
-              <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem;">
-                <span style="font-family: var(--font-mono); font-size: 0.8rem; color: #0051c3;">{{ w.custom_domain }}</span>
-                <span style="color: #a1a1aa;">•</span>
-                <span class="cf-badge-repo">
-                  <CfIcon name="github" size="12" />
-                  <span>{{ w.repo }} ({{ w.branch }})</span>
-                </span>
-              </div>
-            </div>
-            <div class="cf-item-card-actions">
-              <span style="font-size: 0.78rem; color: #71717a;">Deployed {{ w.last_deployed }}</span>
-              <CfButton variant="ghost" size="sm" icon="more-horizontal" icon-only />
-            </div>
-          </div>
-
-          <div class="cf-item-card-bottom">
-            <div class="cf-item-card-meta">
-              <span class="cf-stat-chip">Release: <strong>{{ w.current_version }}</strong></span>
-            </div>
-            <div class="cf-item-card-stats">
-              <span class="cf-stat-chip">
-                <CfIcon name="bar-chart-2" size="13" />
-                <span>Requests: <strong>{{ w.invocations_24h }}</strong></span>
-              </span>
-              <span class="cf-stat-chip">
-                <CfIcon name="cpu" size="13" />
-                <span>Latency: <strong>{{ w.median_cpu_time }}</strong></span>
-              </span>
-              <span class="cf-stat-chip">
-                <CfIcon name="alert-triangle" size="13" />
-                <span>Errors: <strong>{{ w.errors_24h }}</strong></span>
-              </span>
-            </div>
-          </div>
-        </router-link>
-      </div>
+        <p v-if="!server.databases.length" class="home-empty">No databases yet.</p>
+        <ul class="home-list">
+          <li v-for="d in server.databases" :key="d.db_id">
+            <router-link :to="`/d1/${d.db_id}`">{{ d.name }}</router-link>
+            <span :class="['home-tag', d.status]">{{ d.engine }}</span>
+          </li>
+        </ul>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { mockData } from '@/data/mockData.js'
+import { onMounted, onUnmounted } from 'vue'
+import { server, loadServer } from '@/composables/serverState.js'
 
-const analyticsRange = ref('Last 24 hours')
-
-function openCommandPalette() {
-  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))
-}
+let timer
+onMounted(() => {
+  loadServer()
+  timer = setInterval(loadServer, 10000)
+})
+onUnmounted(() => clearInterval(timer))
 </script>
 
 <style scoped>
-.cf-account-home {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-/* Hero Search Section */
-.cf-home-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 1.5rem 0 0.5rem 0;
-  gap: 1rem;
-}
-
-.cf-hero-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.3rem 0.85rem;
-  border-radius: 9999px;
-  border: 1px solid var(--color-kumo-line);
-  background: var(--color-kumo-base);
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--text-color-kumo-default);
-  box-shadow: var(--shadow-kumo-xs);
-}
-
-.cf-hero-title {
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  color: var(--text-color-kumo-strong);
-  margin: 0;
-}
-
-.cf-hero-search-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  max-width: 560px;
-  height: 40px;
-  padding: 0 0.875rem;
-  border-radius: 8px;
-  background: var(--color-kumo-base);
-  border: 1px solid var(--kumo-control-border-default, rgba(0, 0, 0, 0.14));
-  box-shadow: 0 0 0 3px var(--color-kumo-fill, rgba(0, 0, 0, 0.03));
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.cf-hero-search-bar:hover {
-  border-color: #0051c3;
-  box-shadow: 0 0 0 3px rgba(0, 81, 195, 0.12);
-}
-
-.cf-hero-search-left {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.cf-hero-search-placeholder {
-  font-size: 13.5px;
-  color: var(--text-color-kumo-subtle);
-}
-
-.cf-hero-kbd-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.cf-kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  font-size: 11px;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  color: var(--text-color-kumo-subtle);
-  background: var(--color-kumo-recessed);
-  border: 1px solid var(--color-kumo-line);
-  border-radius: 4px;
-}
-
-/* 3-Column Borderless Quick Directory */
-.cf-quick-dir-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 2rem;
-}
-
+.home-page { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.home-hero { text-align: center; padding: 1rem 0; }
+.home-pill { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 13px; padding: 4px 12px; border-radius: 999px; background: #f3f4f6; }
+.home-dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; }
+.home-title { font-size: 28px; margin: 0.75rem 0 0.25rem; }
+.home-sub { font-size: 14px; color: #6b7280; margin: 0; }
+.home-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.home-card { background: var(--kumo-base, #fff); border: 1px solid var(--kumo-border, #e2e4e8); border-radius: 10px; padding: 1rem; min-width: 0; box-sizing: border-box; }
+.home-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.home-link { font-weight: 600; color: inherit; text-decoration: none; }
+.home-link-muted { font-size: 13px; color: #6b7280; text-decoration: none; }
+.home-count { font-size: 13px; color: #6b7280; }
+.home-empty { font-size: 13px; color: #6b7280; margin: 0; }
+.home-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.home-list li { display: flex; justify-content: space-between; gap: 0.5rem; align-items: center; font-size: 14px; min-width: 0; }
+.home-list a { overflow-wrap: anywhere; min-width: 0; }
+.home-tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #e5e7eb; color: #374151; white-space: nowrap; }
+.home-tag.running, .home-tag.active { background: #dcfce7; color: #166534; }
+.home-tag.stopped, .home-tag.failed { background: #fee2e2; color: #991b1b; }
 @media (max-width: 900px) {
-  .cf-quick-dir-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-}
-
-.cf-dir-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.cf-dir-col-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-kumo-line);
-}
-
-.cf-dir-col-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-color-kumo-strong);
-  text-decoration: none;
-}
-
-.cf-dir-col-title:hover {
-  color: #0051c3;
-}
-
-.cf-dir-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.cf-dir-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.65rem 0.25rem;
-  border-bottom: 1px solid var(--color-kumo-hairline);
-  text-decoration: none;
-  color: var(--text-color-kumo-default);
-  transition: background-color 0.12s ease;
-}
-
-.cf-dir-row:hover {
-  background: var(--color-kumo-fill);
-}
-
-.cf-dir-row-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.cf-dir-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: #10b981;
-  flex-shrink: 0;
-}
-
-.cf-dir-prefix {
-  font-size: 13px;
-  color: var(--text-color-kumo-subtle);
-  white-space: nowrap;
-}
-
-.cf-dir-row-name {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--text-color-kumo-strong);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cf-dir-row-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-.cf-dir-meta {
-  font-size: 12px;
-  color: var(--text-color-kumo-subtle);
-}
-
-.cf-dir-chevron {
-  color: var(--text-color-kumo-inactive);
-}
-
-/* Announcement Banner */
-.cf-announcement-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding: 1rem 1.25rem;
-  border-radius: 10px;
-  background: var(--color-kumo-base);
-  border: 1px solid var(--color-kumo-line);
-  box-shadow: var(--shadow-kumo-card);
-}
-
-@media (max-width: 720px) {
-  .cf-announcement-banner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-.cf-announce-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.cf-announce-thumb {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #f6821f, #e05300);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.cf-announce-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.cf-announce-title {
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--text-color-kumo-strong);
-}
-
-.cf-announce-sub {
-  font-size: 13px;
-  color: var(--text-color-kumo-subtle);
-  margin: 0.2rem 0 0 0;
-}
-
-.cf-orange-cta-btn {
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 6px;
-  background: #f6821f;
-  color: #ffffff;
-  font-size: 13.5px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 0.15s ease;
-}
-
-.cf-orange-cta-btn:hover {
-  background: #ee730a;
-}
-
-/* Analytics Section */
-.cf-analytics-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.cf-section-heading {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-color-kumo-strong);
-  margin: 0;
-  letter-spacing: -0.015em;
-}
-
-.cf-analytics-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  .home-grid { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

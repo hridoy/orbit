@@ -45,7 +45,7 @@ import TheFooter from '@/components/TheFooter.vue'
 import ThemeCustomizer from '@/components/ThemeCustomizer.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
 import { useTheme } from '@/composables/useTheme.js'
-import { mockData } from '@/data/mockData.js'
+import { loadServer } from '@/composables/serverState.js'
 
 const route = useRoute()
 const { mobileSidebarOpen, toggleMobileSidebar } = useTheme()
@@ -63,13 +63,7 @@ const setupRequired = ref(false)
 
 async function hydrateNodeState() {
   try {
-    const headers = authToken.value ? { Authorization: 'Bearer ' + authToken.value } : {}
-    const res = await fetch('/api/v1/node', { headers })
-    if (res.ok) {
-      const node = await res.json()
-      if (node.hostname) mockData.account.hostname = node.hostname
-      if (node.os || node.arch) mockData.account.plan = `${node.os || 'Linux'} · ${node.arch || 'amd64'}`
-    }
+    await loadServer()
   } catch (e) {}
 }
 

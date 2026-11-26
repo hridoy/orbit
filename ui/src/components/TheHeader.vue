@@ -144,8 +144,8 @@
           <router-link to="/settings" class="user-info-section" style="text-decoration: none;" @click="userMenuOpen = false">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="min-width: 0;">
-                <div class="user-email">{{ mockData.account.email }}</div>
-                <div class="user-account-name">{{ mockData.account.name }}</div>
+                <div class="user-email">Dashboard administrator</div>
+                <div class="user-account-name">{{ server.hostname || 'This server' }}</div>
               </div>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256" class="text-kumo-subtle" style="flex-shrink: 0;">
                 <circle cx="128" cy="128" r="16"></circle>
@@ -349,7 +349,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { mockData } from '@/data/mockData.js'
+import { server } from '@/composables/serverState.js'
 import { useTheme } from '@/composables/useTheme.js'
 
 const route = useRoute()
@@ -383,13 +383,13 @@ const isZoneScoped = computed(() => {
 })
 
 const currentZoneName = computed(() => {
-  return mockData.activeZone.name || 'northlab.dev'
+  return server.panelDomain || server.hostname || 'This server'
 })
 
 const filteredZones = computed(() => {
-  let list = mockData.domains || []
+  let list = server.domains.map((d) => ({ name: d.domain }))
   if (starredOnly.value) {
-    list = list.filter(z => z.name === 'northlab.dev')
+    list = list.filter(z => z.name === server.panelDomain)
   }
   if (zoneSearch.value.trim()) {
     const q = zoneSearch.value.trim().toLowerCase()
@@ -416,7 +416,7 @@ function setAppearance(mode) {
 }
 
 function copyAccountId() {
-  navigator.clipboard.writeText(mockData.account.id)
+  navigator.clipboard.writeText(server.nodeId)
   copiedId.value = true
   setTimeout(() => {
     copiedId.value = false
