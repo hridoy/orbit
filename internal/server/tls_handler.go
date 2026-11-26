@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"orbit/internal/db"
 	"orbit/internal/tlsengine"
 )
 
@@ -31,6 +32,9 @@ func (h *TLSHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeAuthJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
+	}
+	if list == nil {
+		list = []*db.TLSDomain{}
 	}
 	writeAuthJSON(w, http.StatusOK, list)
 }
