@@ -13,6 +13,7 @@ import (
 	"orbit/internal/config"
 	"orbit/internal/database"
 	"orbit/internal/db"
+	"orbit/internal/integrations"
 	"orbit/internal/jail"
 	"orbit/internal/proxy"
 	"orbit/internal/s3"
@@ -41,6 +42,7 @@ type Server struct {
 	authHdr      *AuthHandler
 	tlsHdr       *TLSHandler
 	settings     *SettingsHandler
+	integrations *IntegrationsHandler
 	tlsEngine    *tlsengine.Engine
 	databaseHdr  *database.DatabaseHandler
 	s3Engine     *s3.S3Engine
@@ -63,6 +65,8 @@ func NewServer(
 	storageStore := db.NewStorageStore(dbConn)
 	adminStore := db.NewAdminStore(dbConn)
 	tlsEngine := tlsengine.New(db.NewTLSDomainStore(dbConn), vault)
+	integrationMgr := integrations.New(db.NewIntegrationStore(dbConn), vault)
+	tlsEngine.SetSecrets(integrationMgr.Get)
 	settingsHandler, err := NewSettingsHandler(db.NewServerSettingsStore(dbConn), tlsEngine)
 	if err != nil {
 		log.Fatalf("settings: %v", err)
@@ -110,6 +114,7 @@ func NewServer(
 		authHdr:      NewAuthHandler(adminStore, tokenMgr),
 		tlsHdr:       NewTLSHandler(tlsEngine),
 		settings:     settingsHandler,
+		integrations: NewIntegrationsHandler(integrationMgr),
 		tlsEngine:    tlsEngine,
 		databaseHdr:  databaseHandler,
 		s3Engine:     s3Engine,
@@ -159,6 +164,7 @@ func (s *Server) registerRoutes() {
 	// Domains and HTTPS certificates
 	s.tlsHdr.RegisterRoutes(s.mux)
 	s.settings.RegisterRoutes(s.mux)
+	s.integrations.RegisterRoutes(s.mux)
 
 	// Register agent self-update routes
 	s.platformHdr.RegisterRoutes(s.mux)

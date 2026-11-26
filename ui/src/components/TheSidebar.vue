@@ -167,6 +167,11 @@
             <CfIcon name="cis-settings-gear-2" size="18" />
             <span v-if="!sidebarMini">Settings</span>
           </router-link>
+
+          <router-link to="/integrations" class="sidebar-nav-item" active-class="active">
+            <CfIcon name="cis-settings-slider-hor" size="18" />
+            <span v-if="!sidebarMini">Credentials</span>
+          </router-link>
         </div>
 
         <!-- ============================================================== -->

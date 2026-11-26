@@ -209,3 +209,12 @@ CREATE TABLE IF NOT EXISTS server_settings (
     value               TEXT NOT NULL,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Saved third-party credentials (Cloudflare API token, ZeroSSL EAB). Secrets are encrypted.
+CREATE TABLE IF NOT EXISTS integrations (
+    provider            TEXT PRIMARY KEY,
+    secret_enc          TEXT NOT NULL,
+    extra               TEXT NOT NULL DEFAULT '',
+    hint                TEXT NOT NULL DEFAULT '',
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

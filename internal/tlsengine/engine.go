@@ -89,6 +89,15 @@ type Engine struct {
 
 	// directory overrides the ACME directory for Let's Encrypt (tests only).
 	directory string
+
+	// saved returns a saved third-party credential (secret, extra). Set by SetSecrets.
+	saved func(provider string) (secret, extra string, ok bool)
+}
+
+// SetSecrets lets the engine use credentials saved on the Integrations page when a request
+// leaves them out.
+func (e *Engine) SetSecrets(fn func(provider string) (secret, extra string, ok bool)) {
+	e.saved = fn
 }
 
 func New(store *db.TLSDomainStore, vault *security.Vault) *Engine {
@@ -164,8 +173,13 @@ func (e *Engine) Add(req AddRequest) (*db.TLSDomain, error) {
 	switch req.Provider {
 	case ProviderCloudflareOrigin:
 		if req.CertPEM == "" && req.KeyPEM == "" {
+			if req.CFToken == "" && e.saved != nil {
+				if tok, _, ok := e.saved("cloudflare"); ok {
+					req.CFToken = tok
+				}
+			}
 			if req.CFToken == "" {
-				return nil, errors.New("enter a Cloudflare API token, or paste the origin certificate and key")
+				return nil, errors.New("save a Cloudflare API token on the Integrations page, or paste the origin certificate and key")
 			}
 			return e.addCloudflareAuto(domain, req.CFToken)
 		}
@@ -196,8 +210,13 @@ func (e *Engine) Add(req AddRequest) (*db.TLSDomain, error) {
 		return rec, nil
 
 	default: // ACME providers
+		if req.Provider == ProviderZeroSSL && (req.EABKID == "" || req.EABHMAC == "") && e.saved != nil {
+			if secret, kid, ok := e.saved("zerossl"); ok {
+				req.EABHMAC, req.EABKID = secret, kid
+			}
+		}
 		if req.Provider == ProviderZeroSSL && (req.EABKID == "" || req.EABHMAC == "") {
-			return nil, errors.New("ZeroSSL needs the EAB key ID and HMAC key from your ZeroSSL account")
+			return nil, errors.New("ZeroSSL needs its EAB key ID and HMAC key, saved on the Integrations page")
 		}
 		if req.Provider == ProviderZeroSSL {
 			hmacEnc, err := e.seal([]byte(req.EABHMAC))

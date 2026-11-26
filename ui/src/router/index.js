@@ -153,6 +153,12 @@ const routes = [
     meta: { title: 'Audit Logs Activity Stream — Cloudflare' }
   },
   {
+    path: '/integrations',
+    name: 'Integrations',
+    component: () => import('@/views/IntegrationsView.vue'),
+    meta: { title: 'Credentials & Integrations' }
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('@/views/SettingsView.vue'),
