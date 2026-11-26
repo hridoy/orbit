@@ -241,3 +241,42 @@ body.sidebar-mini .sidebar-search-btn {
     max-width: 100%;
   }
 }
+
+/* Phones: last overflow fixes for the Rules page and Worker console. */
+@media (max-width: 680px) {
+  .kumo-content [style*="display: flex"] {
+    flex-wrap: wrap;
+  }
+  .kumo-content .page-title-row {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .kumo-content [class*="stats-"][class*="grid"],
+  .kumo-content [class*="-grid"][class*="stats"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .kumo-content .kumo-stat-delta {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Phones: R2 key/value boxes and worker stat cards shrink and wrap. */
+@media (max-width: 680px) {
+  .cf-r2-kv-box,
+  .cf-r2-kv-val,
+  .cf-r2-mini-copy-btn,
+  .kumo-stat-card,
+  .kumo-stat-body,
+  .kumo-stat-card > *,
+  .kumo-stat-body > * {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+  }
+  .cf-r2-kv-val {
+    word-break: break-all;
+  }
+}
