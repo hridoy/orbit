@@ -30,18 +30,18 @@ type RunningDB struct {
 }
 
 type DatabaseManager struct {
-	mu        sync.RWMutex
-	cfg       *config.Config
-	dbStore   *db.DatabaseStore
-	secStore  *db.SecretStore
-	vault     *security.Vault
-	postgres  *PostgresEngine
-	mysql     *MySQLEngine
-	mongodb   *MongoEngine
-	redis     *RedisEngine
-	libsql    *LibSQLEngine
-	running   map[string]*RunningDB
-	buffers   map[string]*compute.RingBuffer
+	mu       sync.RWMutex
+	cfg      *config.Config
+	dbStore  *db.DatabaseStore
+	secStore *db.SecretStore
+	vault    *security.Vault
+	postgres *PostgresEngine
+	mysql    *MySQLEngine
+	mongodb  *MongoEngine
+	redis    *RedisEngine
+	libsql   *LibSQLEngine
+	running  map[string]*RunningDB
+	buffers  map[string]*compute.RingBuffer
 }
 
 func NewDatabaseManager(
@@ -223,6 +223,9 @@ func (m *DatabaseManager) StartDatabase(ctx context.Context, dbID string) error 
 	}
 
 	baseDir := m.DBBaseDir(dbID)
+	if err := chownDBTree(baseDir); err != nil {
+		return fmt.Errorf("prepare data dir: %w", err)
+	}
 	rb := m.GetRingBuffer(dbID)
 
 	childCtx, cancel := context.WithCancel(context.Background())

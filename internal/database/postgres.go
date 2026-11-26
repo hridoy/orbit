@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 
 	"orbit/internal/compute"
 )
@@ -71,6 +70,9 @@ func (pe *PostgresEngine) Provision(
 		}
 		defer os.Remove(pwFile)
 
+		if err := chownDBTree(baseDir); err != nil {
+			return fmt.Errorf("prepare data dir: %w", err)
+		}
 		cmd := exec.CommandContext(ctx, pe.initdbBin,
 			"-D", dataDir,
 			"-U", adminUser,
@@ -78,6 +80,9 @@ func (pe *PostgresEngine) Provision(
 			"--auth=scram-sha-256",
 			"-E", "UTF8",
 		)
+		if err := applyDBUser(cmd); err != nil {
+			return err
+		}
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("initdb failed: %s: %w", string(out), err)
@@ -118,7 +123,9 @@ func (pe *PostgresEngine) Start(
 
 	cmd.Stdout = rb
 	cmd.Stderr = rb
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := applyDBUser(cmd); err != nil {
+		return nil, err
+	}
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start postgres: %w", err)

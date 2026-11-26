@@ -6,15 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 
 	"orbit/internal/compute"
 )
 
 type MySQLEngine struct {
-	mysqldBin    string
-	mariadbdBin  string
-	initDbBin    string
+	mysqldBin   string
+	mariadbdBin string
+	initDbBin   string
 }
 
 func NewMySQLEngine() *MySQLEngine {
@@ -94,11 +93,14 @@ func (e *MySQLEngine) Provision(
 	// Initialize data directory if host binary is present and data dir is empty
 	entries, _ := os.ReadDir(dataDir)
 	if len(entries) == 0 {
+		_ = chownDBTree(baseDir)
 		if isMariaDB && e.initDbBin != "" {
 			cmd := exec.CommandContext(ctx, e.initDbBin, fmt.Sprintf("--datadir=%s", dataDir), "--auth-root-authentication-method=normal")
+			_ = applyDBUser(cmd)
 			_ = cmd.Run()
 		} else if e.mysqldBin != "" {
 			cmd := exec.CommandContext(ctx, e.mysqldBin, "--initialize-insecure", fmt.Sprintf("--datadir=%s", dataDir))
+			_ = applyDBUser(cmd)
 			_ = cmd.Run()
 		}
 	}
@@ -130,7 +132,9 @@ func (e *MySQLEngine) Start(
 
 	cmd.Stdout = rb
 	cmd.Stderr = rb
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := applyDBUser(cmd); err != nil {
+		return nil, err
+	}
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start %s: %w", engineName, err)

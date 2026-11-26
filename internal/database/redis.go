@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 
 	"orbit/internal/compute"
 )
@@ -71,7 +70,9 @@ func (re *RedisEngine) Start(
 
 	cmd.Stdout = rb
 	cmd.Stderr = rb
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := applyDBUser(cmd); err != nil {
+		return nil, err
+	}
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start redis-server: %w", err)
