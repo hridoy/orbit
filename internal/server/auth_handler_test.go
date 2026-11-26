@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"orbit/internal/db"
@@ -28,7 +29,7 @@ func newAuthTestHandler(t *testing.T) (*AuthHandler, *security.TokenManager) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewAuthHandler(db.NewAdminStore(conn), tm), tm
+	return NewAuthHandler(db.NewDashboardUserStore(conn), tm), tm
 }
 
 func post(h http.HandlerFunc, path string, body any, remote string) *httptest.ResponseRecorder {
@@ -54,7 +55,7 @@ func TestSetupThenLogin(t *testing.T) {
 	var out map[string]string
 	_ = json.Unmarshal(rec.Body.Bytes(), &out)
 	claims, err := tm.VerifyToken(out["token"])
-	if err != nil || claims.Role != "admin" {
+	if err != nil || !strings.HasPrefix(claims.TokenID, security.MemberTokenPrefix+"ops:") {
 		t.Fatalf("setup token invalid: %v", err)
 	}
 	if rec := post(h.handleSetup, "/api/v1/auth/setup", map[string]string{"username": "evil", "password": "another-pass"}, local); rec.Code != http.StatusConflict {

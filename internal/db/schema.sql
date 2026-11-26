@@ -218,3 +218,13 @@ CREATE TABLE IF NOT EXISTS integrations (
     hint                TEXT NOT NULL DEFAULT '',
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Dashboard members. role is admin, operator, or viewer. The password hash uses the same
+-- PBKDF2 format as admin_users.
+CREATE TABLE IF NOT EXISTS dashboard_users (
+    username            TEXT PRIMARY KEY,
+    password_hash       TEXT NOT NULL,
+    role                TEXT NOT NULL,
+    disabled            INTEGER NOT NULL DEFAULT 0,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -40,6 +40,7 @@ type Server struct {
 	gitHdr       *compute.GitHandler
 	platformHdr  *update.Handler
 	authHdr      *AuthHandler
+	usersHdr     *UsersHandler
 	tlsHdr       *TLSHandler
 	settings     *SettingsHandler
 	integrations *IntegrationsHandler
@@ -64,6 +65,10 @@ func NewServer(
 	secStore := db.NewSecretStore(dbConn, vault)
 	storageStore := db.NewStorageStore(dbConn)
 	adminStore := db.NewAdminStore(dbConn)
+	userStore := db.NewDashboardUserStore(dbConn)
+	if err := migrateAdminToUsers(adminStore, userStore); err != nil {
+		log.Fatalf("members: %v", err)
+	}
 	tlsEngine := tlsengine.New(db.NewTLSDomainStore(dbConn), vault)
 	integrationMgr := integrations.New(db.NewIntegrationStore(dbConn), vault)
 	tlsEngine.SetSecrets(integrationMgr.Get)
@@ -78,6 +83,7 @@ func NewServer(
 	jailInst := jail.NewJail(cfg)
 	jailHandler := jail.NewHandler(jailInst)
 	authMiddleware := security.NewAuthMiddleware(tokenMgr)
+	authMiddleware.WithUsers(memberLookup{users: userStore})
 
 	cgroups := compute.NewCgroupController()
 	supervisor := compute.NewProcessSupervisor(cfg, cgroups)
@@ -111,7 +117,8 @@ func NewServer(
 		computeHdr:   computeHandler,
 		gitHdr:       gitHandler,
 		platformHdr:  update.NewHandler(cfg.DataDir, buildinfo.Version),
-		authHdr:      NewAuthHandler(adminStore, tokenMgr),
+		authHdr:      NewAuthHandler(userStore, tokenMgr),
+		usersHdr:     NewUsersHandler(userStore),
 		tlsHdr:       NewTLSHandler(tlsEngine),
 		settings:     settingsHandler,
 		integrations: NewIntegrationsHandler(integrationMgr),
@@ -160,6 +167,7 @@ func (s *Server) registerRoutes() {
 
 	// Dashboard setup and password login
 	s.authHdr.RegisterRoutes(s.mux)
+	s.usersHdr.RegisterRoutes(s.mux)
 
 	// Domains and HTTPS certificates
 	s.tlsHdr.RegisterRoutes(s.mux)
@@ -235,4 +243,17 @@ func (s *Server) Close() error {
 		return s.httpServer.Close()
 	}
 	return nil
+}
+
+// migrateAdminToUsers carries the original single admin login into the members table, once.
+func migrateAdminToUsers(admins *db.AdminStore, users *db.DashboardUserStore) error {
+	n, err := users.Count()
+	if err != nil || n > 0 {
+		return err
+	}
+	old, err := admins.Get()
+	if err != nil || old == nil {
+		return err
+	}
+	return users.Create(&db.DashboardUser{Username: old.Username, PasswordHash: old.PasswordHash, Role: "admin"})
 }

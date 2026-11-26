@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"net"
 	"net/http"
 	"strings"
@@ -22,18 +21,18 @@ const (
 	maxAuthBodyBytes    = 4 << 10
 )
 
-// AuthHandler runs first-run setup and password login for the dashboard. Login returns a
-// signed bearer token, so the rest of the API keeps using the same auth path.
+// AuthHandler runs first-run setup and password login for dashboard members. Login returns a
+// signed bearer token that names the member, so role and status are checked on each request.
 type AuthHandler struct {
-	admins   *db.AdminStore
+	users    *db.DashboardUserStore
 	tokenMgr *security.TokenManager
 
 	mu       sync.Mutex
 	failures map[string][]time.Time // client IP -> recent failed logins
 }
 
-func NewAuthHandler(admins *db.AdminStore, tokenMgr *security.TokenManager) *AuthHandler {
-	return &AuthHandler{admins: admins, tokenMgr: tokenMgr, failures: map[string][]time.Time{}}
+func NewAuthHandler(users *db.DashboardUserStore, tokenMgr *security.TokenManager) *AuthHandler {
+	return &AuthHandler{users: users, tokenMgr: tokenMgr, failures: map[string][]time.Time{}}
 }
 
 func (h *AuthHandler) RegisterRoutes(mux *http.ServeMux) {
@@ -43,12 +42,12 @@ func (h *AuthHandler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *AuthHandler) handleStatus(w http.ResponseWriter, r *http.Request) {
-	acc, err := h.admins.Get()
+	n, err := h.users.Count()
 	if err != nil {
 		writeAuthJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	writeAuthJSON(w, http.StatusOK, map[string]any{"setup_required": acc == nil})
+	writeAuthJSON(w, http.StatusOK, map[string]any{"setup_required": n == 0})
 }
 
 type credentials struct {
@@ -67,8 +66,8 @@ func decodeCredentials(w http.ResponseWriter, r *http.Request) (credentials, boo
 	return c, true
 }
 
-// handleSetup creates the operator account. It works once. Network access is limited by the
-// firewall to the owner's IPs, so this endpoint is only reachable from them.
+// handleSetup creates the first admin. It works only while no member exists, and the firewall
+// limits who can reach the dashboard.
 func (h *AuthHandler) handleSetup(w http.ResponseWriter, r *http.Request) {
 	c, ok := decodeCredentials(w, r)
 	if !ok {
@@ -83,11 +82,16 @@ func (h *AuthHandler) handleSetup(w http.ResponseWriter, r *http.Request) {
 		writeAuthJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := h.admins.Create(c.Username, hash); err != nil {
-		if errors.Is(err, db.ErrAdminExists) {
-			writeAuthJSON(w, http.StatusConflict, map[string]string{"error": "setup is already complete; log in instead"})
-			return
-		}
+	n, err := h.users.Count()
+	if err != nil {
+		writeAuthJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	if n > 0 {
+		writeAuthJSON(w, http.StatusConflict, map[string]string{"error": "setup is already complete; log in instead"})
+		return
+	}
+	if err := h.users.Create(&db.DashboardUser{Username: c.Username, PasswordHash: hash, Role: "admin"}); err != nil {
 		writeAuthJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -104,31 +108,39 @@ func (h *AuthHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	acc, err := h.admins.Get()
+	u, err := h.users.Get(c.Username)
 	if err != nil {
 		writeAuthJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	if acc == nil {
-		writeAuthJSON(w, http.StatusConflict, map[string]string{"error": "setup has not been completed yet"})
-		return
-	}
-	// Check both fields every time so response timing does not reveal which one was wrong.
-	userOK := c.Username == acc.Username
-	passOK := security.VerifyPassword(c.Password, acc.PasswordHash)
-	if !userOK || !passOK {
+	if u == nil {
+		// Spend the same time as a real check so the response does not reveal which names exist.
+		_ = security.VerifyPassword(c.Password, dummyHash)
 		h.recordFailure(ip)
 		writeAuthJSON(w, http.StatusUnauthorized, map[string]string{"error": "wrong username or password"})
 		return
 	}
+	if !security.VerifyPassword(c.Password, u.PasswordHash) {
+		h.recordFailure(ip)
+		writeAuthJSON(w, http.StatusUnauthorized, map[string]string{"error": "wrong username or password"})
+		return
+	}
+	if u.Disabled {
+		writeAuthJSON(w, http.StatusForbidden, map[string]string{"error": "this account is disabled"})
+		return
+	}
 	h.clearFailures(ip)
-	h.issue(w, acc.Username)
+	h.issue(w, u.Username)
 }
+
+// dummyHash is checked when a username does not exist, so timing does not reveal it.
+var dummyHash, _ = security.HashPassword("orbit-dummy-password")
 
 func (h *AuthHandler) issue(w http.ResponseWriter, username string) {
 	id := make([]byte, 8)
 	_, _ = rand.Read(id)
-	token, err := h.tokenMgr.IssueToken("dashboard-"+hex.EncodeToString(id), "admin", dashboardSessionTTL)
+	tokenID := security.MemberTokenPrefix + username + ":" + hex.EncodeToString(id)
+	token, err := h.tokenMgr.IssueToken(tokenID, "viewer", dashboardSessionTTL)
 	if err != nil {
 		writeAuthJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -165,6 +177,19 @@ func (h *AuthHandler) recent(ip string) []time.Time {
 	}
 	h.failures[ip] = kept
 	return kept
+}
+
+// memberLookup answers the middleware: which role does this member have, and may they sign in.
+type memberLookup struct {
+	users *db.DashboardUserStore
+}
+
+func (m memberLookup) Lookup(username string) (string, bool, bool) {
+	u, err := m.users.Get(username)
+	if err != nil || u == nil {
+		return "", false, false
+	}
+	return u.Role, !u.Disabled, true
 }
 
 func clientIP(r *http.Request) string {
