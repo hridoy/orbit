@@ -61,7 +61,7 @@ func discoverInstalled() []Installed {
 }
 
 func readVersion(engine, bin string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	raw, _ := exec.CommandContext(ctx, bin, "--version").CombinedOutput()
 	m := versionRe.FindStringSubmatch(string(raw))
@@ -87,10 +87,37 @@ func versionLess(a, b string) bool {
 	return len(pa) < len(pb)
 }
 
+// RefreshInstalled rediscovers installed versions. It runs in the background at startup and
+// every ten minutes, so a slow or busy server does not hide versions from the dashboard.
+func (m *DatabaseManager) RefreshInstalled() {
+	found := discoverInstalled()
+	m.installedMu.Lock()
+	m.installed = found
+	m.installedMu.Unlock()
+}
+
+func (m *DatabaseManager) installedSnapshot() []Installed {
+	m.installedMu.RLock()
+	defer m.installedMu.RUnlock()
+	return m.installed
+}
+
+// StartVersionRefresh runs the initial discovery and keeps it current.
+func (m *DatabaseManager) StartVersionRefresh() {
+	go func() {
+		m.RefreshInstalled()
+		t := time.NewTicker(10 * time.Minute)
+		defer t.Stop()
+		for range t.C {
+			m.RefreshInstalled()
+		}
+	}()
+}
+
 // Versions lists the versions installed for each engine, newest first.
 func (m *DatabaseManager) Versions() map[string][]string {
 	out := map[string][]string{}
-	for _, inst := range m.installed {
+	for _, inst := range m.installedSnapshot() {
 		out[inst.Engine] = append(out[inst.Engine], inst.Version)
 	}
 	return out
@@ -102,7 +129,7 @@ func (m *DatabaseManager) pick(engine, version string) (Installed, error) {
 	if version == "" || version == nativeVersion {
 		return Installed{Engine: engine, Version: nativeVersion, Bin: m.defaultBin(engine)}, nil
 	}
-	for _, inst := range m.installed {
+	for _, inst := range m.installedSnapshot() {
 		if inst.Engine == engine && inst.Version == version {
 			return inst, nil
 		}

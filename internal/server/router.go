@@ -230,6 +230,7 @@ func (s *Server) ListenAndServe() error {
 	go s.startPublicProxy()
 	go s.tlsEngine.RunRenewals(context.Background())
 	go s.dbManager.RestoreExposures()
+	s.dbManager.StartVersionRefresh()
 
 	s.httpServer = &http.Server{
 		Addr:              s.cfg.ListenAddr,

@@ -42,6 +42,7 @@ type DatabaseManager struct {
 	redis       *RedisEngine
 	libsql      *LibSQLEngine
 	installed   []Installed
+	installedMu sync.RWMutex
 	dbExposures *db.DatabaseExposureStore
 	exp         *exposures
 	running     map[string]*RunningDB
@@ -55,19 +56,18 @@ func NewDatabaseManager(
 	vault *security.Vault,
 ) *DatabaseManager {
 	return &DatabaseManager{
-		cfg:       cfg,
-		dbStore:   dbStore,
-		secStore:  secStore,
-		vault:     vault,
-		postgres:  NewPostgresEngine(),
-		mysql:     NewMySQLEngine(),
-		mongodb:   NewMongoEngine(),
-		redis:     NewRedisEngine(),
-		libsql:    NewLibSQLEngine(),
-		installed: discoverInstalled(),
-		exp:       newExposures(),
-		running:   make(map[string]*RunningDB),
-		buffers:   make(map[string]*compute.RingBuffer),
+		cfg:      cfg,
+		dbStore:  dbStore,
+		secStore: secStore,
+		vault:    vault,
+		postgres: NewPostgresEngine(),
+		mysql:    NewMySQLEngine(),
+		mongodb:  NewMongoEngine(),
+		redis:    NewRedisEngine(),
+		libsql:   NewLibSQLEngine(),
+		exp:      newExposures(),
+		running:  make(map[string]*RunningDB),
+		buffers:  make(map[string]*compute.RingBuffer),
 	}
 }
 
