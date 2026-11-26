@@ -50,6 +50,10 @@ func applyDBUser(cmd *exec.Cmd) error {
 		return err
 	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Credential: cred}
+	if cred != nil && cmd.Dir == "" {
+		// The agent working directory is root-only; move to a directory the service user can enter.
+		cmd.Dir = "/"
+	}
 	return nil
 }
 
