@@ -73,6 +73,13 @@
     <div v-if="current" class="srv-card">
       <strong>Current panel domain</strong>
       <p class="srv-muted"><a :href="'https://' + current" target="_blank" rel="noopener">https://{{ current }}</a></p>
+      <label class="srv-check">
+        <input type="checkbox" v-model="lockOn" :disabled="busy" @change="saveLock" />
+        <span>
+          <strong>Only allow access through this domain</strong>
+          <span class="srv-muted">The server IP stops opening the dashboard. Your SSH tunnel still works, so you can always get back in.</span>
+        </span>
+      </label>
     </div>
   </div>
 </template>
@@ -82,6 +89,7 @@ import { ref, onMounted } from 'vue'
 import { api } from '@/composables/api.js'
 
 const current = ref('')
+const lockOn = ref(false)
 const busy = ref(false)
 const checking = ref(false)
 const error = ref('')
@@ -93,6 +101,7 @@ const load = async () => {
   try {
     const res = await api('/api/v1/server/settings')
     current.value = res.panel_domain || ''
+    lockOn.value = !!res.lock_to_panel_domain
     if (current.value) form.value.panel_domain = current.value
   } catch (e) {
     error.value = e.message
@@ -138,6 +147,27 @@ const save = async () => {
   }
 }
 
+const saveLock = async () => {
+  busy.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const res = await api('/api/v1/server/settings', {
+      method: 'PUT',
+      body: { panel_domain: current.value, provider: '', lock_to_panel_domain: lockOn.value },
+    })
+    lockOn.value = !!res.lock_to_panel_domain
+    notice.value = lockOn.value
+      ? 'Locked. The dashboard now answers only on the panel domain.'
+      : 'Lock turned off. The server IP works again.'
+  } catch (e) {
+    lockOn.value = !lockOn.value
+    error.value = e.message
+  } finally {
+    busy.value = false
+  }
+}
+
 const clear = async () => {
   if (!window.confirm('Remove the panel domain? The dashboard stays available on the server IP.')) return
   busy.value = true
@@ -171,6 +201,9 @@ onMounted(load)
 .srv-detect { font-size: 13px; background: #f3f4f6; padding: 0.6rem 0.75rem; border-radius: 6px; }
 .srv-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .srv-muted { font-size: 13px; color: #6b7280; margin: 0; overflow-wrap: anywhere; }
+.srv-check { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 14px; cursor: pointer; }
+.srv-check input { margin-top: 3px; }
+.srv-check .srv-muted { display: block; }
 .srv-error { color: #b91c1c; font-size: 13px; margin: 0; overflow-wrap: anywhere; }
 .srv-notice { color: #166534; font-size: 13px; margin: 0; }
 @media (max-width: 680px) {

@@ -200,6 +200,12 @@ func (s *Server) Handler() http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 
+		// When locked to the panel domain, refuse remote requests that name the server IP.
+		if s.settings.Blocks(r) {
+			http.Error(w, "this dashboard is only available on its panel domain", http.StatusForbidden)
+			return
+		}
+
 		// Auth wrapper
 		s.auth.Wrap(s.mux).ServeHTTP(w, r)
 	})

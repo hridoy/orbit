@@ -74,3 +74,50 @@ func TestHostOnlyStripsPort(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestLockBlocksRemoteIPOnly(t *testing.T) {
+	h := newSettingsTest(t)
+	h.domain.Store("panel.example.com")
+	h.locked.Store(true)
+
+	remoteIP := httptest.NewRequest("GET", "/", nil)
+	remoteIP.Host = "163.227.238.133:8787"
+	remoteIP.RemoteAddr = "203.0.113.7:50000"
+	if !h.Blocks(remoteIP) {
+		t.Fatal("remote request to the IP was not blocked")
+	}
+
+	panel := httptest.NewRequest("GET", "/", nil)
+	panel.Host = "panel.example.com"
+	panel.RemoteAddr = "203.0.113.7:50000"
+	if h.Blocks(panel) {
+		t.Fatal("panel domain request was blocked")
+	}
+
+	tunnel := httptest.NewRequest("GET", "/", nil)
+	tunnel.Host = "127.0.0.1:8787"
+	tunnel.RemoteAddr = "127.0.0.1:50001"
+	if h.Blocks(tunnel) {
+		t.Fatal("local SSH tunnel request was blocked")
+	}
+
+	h.locked.Store(false)
+	if h.Blocks(remoteIP) {
+		t.Fatal("unlocked dashboard blocked a request")
+	}
+}
+
+func TestLockNeedsActiveCertificate(t *testing.T) {
+	h := newSettingsTest(t)
+	lock := true
+	raw, _ := json.Marshal(map[string]any{"panel_domain": "panel.example.com", "lock_to_panel_domain": lock})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/server/settings", bytes.NewReader(raw))
+	rec := httptest.NewRecorder()
+	h.handlePut(rec, req)
+	if rec.Code == http.StatusOK || rec.Code == http.StatusCreated {
+		t.Fatalf("lock accepted before the certificate was active: %d", rec.Code)
+	}
+	if h.Locked() {
+		t.Fatal("dashboard locked without an active certificate")
+	}
+}
