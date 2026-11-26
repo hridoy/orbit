@@ -1,0 +1,588 @@
+/* ==========================================================================
+   Cloudflare Kumo Top Header Bar & Dropdowns (100% Exact 1:1 Mirror Copy)
+   Inspected from https://dash.cloudflare.com/ (Account Home & Zone pages)
+   ========================================================================== */
+
+:root {
+  --header-height: 58px;
+  --color-kumo-line-translucent: rgba(0, 0, 0, 0.08);
+}
+
+.kumo-header {
+  height: 58px !important;
+  min-height: 58px !important;
+  max-height: 58px !important;
+  background-color: var(--color-kumo-canvas);
+  border-bottom: 1px solid var(--color-kumo-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  box-sizing: border-box;
+}
+
+/* Header Left: Zone Switcher / Mobile Menu */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mobile-menu-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color-kumo-default);
+  padding: 4px;
+}
+
+.mobile-menu-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Zone Switcher Wrapper */
+.zone-switcher-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.zone-switcher-trigger-group {
+  display: flex;
+  align-items: center;
+  margin-left: -6px;
+}
+
+.star-domain-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-color-kumo-subtle);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  padding: 0;
+}
+
+.star-domain-btn:hover {
+  background-color: var(--color-kumo-tint);
+  color: var(--text-color-kumo-default);
+}
+
+.star-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.zone-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-color-kumo-default);
+  transition: background-color 0.15s ease;
+}
+
+.zone-trigger-btn:hover,
+.zone-trigger-btn.active {
+  background-color: var(--color-kumo-tint);
+}
+
+.zone-name {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-color-kumo-default);
+  margin: 0;
+  white-space: nowrap;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cf-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-kumo-line);
+  background-color: var(--color-kumo-base);
+  color: var(--text-color-kumo-default);
+  text-transform: lowercase;
+}
+
+.caret-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-color-kumo-subtle);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   AUTHENTIC ZONE SWITCHER POPOVER (448px width, with pointer arrow & search)
+   ========================================================================== */
+.cf-zone-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 448px;
+  background-color: var(--color-kumo-base);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  box-sizing: border-box;
+}
+
+.cf-popover-arrow {
+  position: absolute;
+  top: -9px;
+  left: 75px;
+}
+
+.arrow-fill {
+  fill: var(--color-kumo-base);
+}
+
+.zone-search-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-kumo-line);
+}
+
+.star-filter-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-color-kumo-subtle);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.15s ease;
+}
+
+.star-filter-btn:hover,
+.star-filter-btn.active {
+  background-color: var(--color-kumo-tint);
+}
+
+.zone-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--text-color-kumo-default);
+}
+
+.zone-search-input::placeholder {
+  color: var(--text-color-kumo-placeholder);
+}
+
+.search-icon {
+  color: var(--text-color-kumo-subtle);
+  flex-shrink: 0;
+}
+
+.zone-items-list {
+  padding: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.zone-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text-color-kumo-default);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.12s ease;
+}
+
+.zone-item-row:hover,
+.zone-item-row.is-current {
+  background-color: var(--color-kumo-tint);
+}
+
+.zone-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.star-spacer {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+}
+
+.active-check {
+  color: var(--cf-brand-orange, #f6821f);
+  flex-shrink: 0;
+}
+
+.zone-popover-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-top: 1px solid var(--color-kumo-line);
+  font-size: 12px;
+  color: var(--text-color-kumo-subtle);
+}
+
+.go-all-link {
+  color: inherit;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.go-all-link:hover {
+  background-color: var(--color-kumo-tint);
+  color: var(--text-color-kumo-default);
+}
+
+/* ==========================================================================
+   HEADER RIGHT ACTIONS
+   ========================================================================== */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Standard Header Action Button (Ask AI, Support) */
+.header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-color-kumo-default);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.header-btn:hover,
+.header-btn.active {
+  background-color: var(--color-kumo-tint);
+}
+
+.header-btn .btn-icon {
+  color: var(--text-color-kumo-default);
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.header-btn:hover .btn-icon,
+.header-btn.active .btn-icon {
+  opacity: 1;
+}
+
+/* Square Icon Buttons (Notifications, User Menu): 32x32px */
+.header-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-color-kumo-default);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.header-icon-btn:hover,
+.header-icon-btn.active {
+  background-color: var(--color-kumo-tint);
+}
+
+.header-icon-btn .btn-icon {
+  color: var(--text-color-kumo-default);
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.header-icon-btn:hover .btn-icon,
+.header-icon-btn.active .btn-icon {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   AUTHENTIC USER MENU POPOVER (280px width, exact menu items & flyouts)
+   ========================================================================== */
+.user-menu-wrapper {
+  position: relative;
+}
+
+.cf-user-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 280px;
+  background-color: var(--color-kumo-base);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  padding: 4px;
+  z-index: 1000;
+  box-sizing: border-box;
+}
+
+.user-info-section {
+  padding: 8px 12px;
+}
+
+.user-email {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-color-kumo-default);
+  word-break: break-all;
+}
+
+.user-account-name {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-color-kumo-subtle);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cf-popover-divider {
+  height: 1px;
+  background-color: var(--color-kumo-line);
+  margin: 4px -4px;
+}
+
+.cf-menu-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.cf-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-color-kumo-default);
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.12s ease;
+  user-select: none;
+}
+
+.cf-menu-item:hover,
+.cf-menu-item.open {
+  background-color: var(--color-kumo-tint);
+}
+
+.cf-menu-item .item-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.chevron-right {
+  color: var(--text-color-kumo-subtle);
+  flex-shrink: 0;
+}
+
+/* Submenu Flyout (Appearance, Language, Timezone) */
+.cf-submenu {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 4px);
+  width: 220px;
+  background-color: var(--color-kumo-base);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  padding: 4px;
+  z-index: 1010;
+  display: flex;
+  flex-direction: column;
+}
+
+.cf-submenu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-color-kumo-default);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.12s ease;
+}
+
+.cf-submenu-item:hover,
+.cf-submenu-item.active {
+  background-color: var(--color-kumo-tint);
+}
+
+.check-icon {
+  color: var(--cf-brand-orange, #f6821f);
+  flex-shrink: 0;
+}
+
+/* Logout Item: Standard neutral text + Exit Door Icon */
+.logout-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logout-icon {
+  color: var(--text-color-kumo-subtle);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   ASK AI SLIDE-OUT DRAWER
+   ========================================================================== */
+.ask-ai-drawer {
+  position: fixed;
+  top: var(--header-height, 58px);
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  background-color: var(--color-kumo-base);
+  border-left: 1px solid var(--color-kumo-line);
+  box-shadow: -8px 0 25px rgba(0, 0, 0, 0.06);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-kumo-line);
+}
+
+.drawer-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-color-kumo-subtle);
+}
+
+.drawer-body {
+  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ai-sample-prompts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+
+.sample-prompt-btn {
+  background: var(--color-kumo-canvas);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--text-color-kumo-default);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.sample-prompt-btn:hover {
+  border-color: #F6821F;
+}
+
+.ai-response-box {
+  background: var(--color-kumo-canvas);
+  border-left: 3px solid #F6821F;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-color-kumo-default);
+}
+
+.drawer-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-kumo-line);
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+  .zone-name {
+    max-width: 140px;
+  }
+  .cf-zone-popover {
+    width: 320px;
+  }
+}

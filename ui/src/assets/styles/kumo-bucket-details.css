@@ -1,0 +1,751 @@
+/* ==========================================================================
+   CLOUDFLARE KUMO DESIGN SYSTEM: R2 BUCKET DETAILS (100% 1:1 AUTHENTIC MIRROR)
+   ========================================================================== */
+
+.cf-bucket-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: calc(100vh - 58px);
+  background-color: var(--kumo-base, #ffffff);
+  color: var(--text-color-kumo-default, #18181b);
+  margin: -1.75rem -2.25rem; /* Bleed to page borders */
+  padding: 0;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+}
+
+[data-theme="dark"] .cf-bucket-page {
+  background-color: #0b0f19;
+  color: #f8fafc;
+}
+
+/* ==========================================================================
+   1. BREADCRUMBS & TOP BAR
+   ========================================================================== */
+.cf-bucket-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  font-size: 13px;
+  color: #71717a;
+  border-bottom: 1px solid var(--color-kumo-line, #e2e8f0);
+}
+
+[data-theme="dark"] .cf-bucket-breadcrumb-bar {
+  border-bottom-color: #1e293b;
+  color: #a1a1aa;
+}
+
+.cf-bucket-breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #71717a;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.cf-bucket-breadcrumb-link:hover {
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-bucket-breadcrumb-link:hover {
+  color: #f8fafc;
+}
+
+.cf-bucket-breadcrumb-name {
+  color: #18181b;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+[data-theme="dark"] .cf-bucket-breadcrumb-name {
+  color: #f8fafc;
+}
+
+.cf-mini-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cf-mini-icon-btn:hover {
+  background-color: #f4f4f5;
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-mini-icon-btn:hover {
+  background-color: #27272a;
+  color: #f8fafc;
+}
+
+/* ==========================================================================
+   2. SEGMENTED PILL TABLIST
+   ========================================================================== */
+.cf-bucket-tabs-row {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 2rem;
+  background-color: var(--kumo-base, #ffffff);
+  border-bottom: 1px solid var(--color-kumo-line, #e2e8f0);
+}
+
+[data-theme="dark"] .cf-bucket-tabs-row {
+  background-color: #0b0f19;
+  border-bottom-color: #1e293b;
+}
+
+.cf-bucket-pill-tabs {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f4f4f5;
+  height: 36px;
+  padding: 2px;
+  border-radius: 8px;
+  gap: 2px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .cf-bucket-pill-tabs {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.cf-bucket-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 400;
+  color: #71717a;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.cf-bucket-tab:hover {
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-bucket-tab {
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .cf-bucket-tab:hover {
+  color: #f8fafc;
+}
+
+.cf-bucket-tab.active {
+  background-color: #ffffff;
+  color: #18181b;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  font-weight: 500;
+}
+
+[data-theme="dark"] .cf-bucket-tab.active {
+  background-color: #18181b;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* ==========================================================================
+   3. OBJECTS TAB: METADATA STATS CARDS
+   ========================================================================== */
+.cf-bucket-content-body {
+  padding: 1.5rem 2rem 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.cf-bucket-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.cf-bucket-meta-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0.875rem 1rem;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  gap: 0.25rem;
+}
+
+[data-theme="dark"] .cf-bucket-meta-card {
+  background-color: #070a12;
+  border-color: #1e293b;
+}
+
+.cf-bucket-meta-label {
+  font-size: 13px;
+  color: #71717a;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.cf-bucket-meta-val {
+  font-size: 14px;
+  font-weight: 500;
+  color: #18181b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+[data-theme="dark"] .cf-bucket-meta-val {
+  color: #f8fafc;
+}
+
+.cf-bucket-meta-val code {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  font-weight: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   4. OBJECTS TAB: TOOLBAR & TABLE
+   ========================================================================== */
+.cf-bucket-toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cf-bucket-search-box {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  width: 320px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0 0.75rem;
+  gap: 0.5rem;
+}
+
+[data-theme="dark"] .cf-bucket-search-box {
+  background-color: #070a12;
+  border-color: #1e293b;
+}
+
+.cf-bucket-search-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-bucket-search-input {
+  color: #f8fafc;
+}
+
+.cf-bucket-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cf-view-prefixes-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 13px;
+  color: #71717a;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cf-view-prefixes-toggle input {
+  cursor: pointer;
+}
+
+/* In-Page Folder Breadcrumb */
+.cf-inpage-folder-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 13px;
+  color: #71717a;
+  padding: 0.25rem 0;
+}
+
+.cf-folder-crumb-link {
+  color: #0051c3;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cf-folder-crumb-link:hover {
+  text-decoration: underline;
+}
+
+.cf-folder-crumb-sep {
+  color: #a1a1aa;
+}
+
+.cf-folder-crumb-current {
+  color: #18181b;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .cf-folder-crumb-current {
+  color: #f8fafc;
+}
+
+.cf-btn-white {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #18181b;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .cf-btn-white {
+  background-color: #070a12;
+  border-color: #27272a;
+  color: #f8fafc;
+}
+
+.cf-btn-white:hover {
+  background-color: #f8fafc;
+}
+
+[data-theme="dark"] .cf-btn-white:hover {
+  background-color: #18181b;
+}
+
+/* Upload Primary Button */
+.cf-btn-blue-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff !important;
+  background-color: #0051c3;
+  border: 1px solid #0043a4;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 81, 195, 0.2);
+  transition: background-color 0.15s ease;
+}
+
+.cf-btn-blue-primary:hover {
+  background-color: #003d99;
+}
+
+/* Multi-select destructive bar */
+.cf-multiselect-active-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .cf-multiselect-active-bar {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.cf-btn-danger-solid {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #ffffff;
+  background-color: #dc2626;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.cf-btn-danger-solid:hover {
+  background-color: #b91c1c;
+}
+
+/* Dropzone Upload Box */
+.cf-bucket-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  background-color: #fafafa;
+  gap: 0.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .cf-bucket-dropzone {
+  border-color: #27272a;
+  background-color: #070a12;
+}
+
+.cf-bucket-dropzone:hover {
+  border-color: #0051c3;
+  background-color: rgba(0, 81, 195, 0.02);
+}
+
+/* Table */
+.cf-bucket-table-card {
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: visible;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .cf-bucket-table-card {
+  background-color: #070a12;
+  border-color: #1e293b;
+}
+
+.cf-bucket-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.cf-bucket-table thead th {
+  height: 44px;
+  padding: 8px 16px;
+  background-color: #ffffff;
+  color: #71717a;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+[data-theme="dark"] .cf-bucket-table thead th {
+  background-color: #070a12;
+  border-bottom-color: #1e293b;
+  color: #a1a1aa;
+}
+
+.cf-bucket-table tbody tr {
+  border-top: 1px solid #e2e8f0;
+  transition: background-color 0.12s ease;
+  height: 44px;
+}
+
+[data-theme="dark"] .cf-bucket-table tbody tr {
+  border-top-color: #1e293b;
+}
+
+.cf-bucket-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+[data-theme="dark"] .cf-bucket-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.cf-bucket-table tbody td {
+  height: 44px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #18181b;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="dark"] .cf-bucket-table tbody td {
+  color: #f8fafc;
+}
+
+.cf-obj-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.cf-obj-link {
+  color: #18181b;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cf-obj-link:hover {
+  text-decoration: underline;
+  color: #0051c3;
+}
+
+[data-theme="dark"] .cf-obj-link {
+  color: #f8fafc;
+}
+
+/* ==========================================================================
+   5. METRICS TAB: 5 STAT CARDS & CHARTS GRID
+   ========================================================================== */
+.cf-metrics-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.cf-metrics-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+  .cf-metrics-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cf-chart-panel-card {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.25rem;
+  gap: 1rem;
+}
+
+[data-theme="dark"] .cf-chart-panel-card {
+  background-color: #070a12;
+  border-color: #1e293b;
+}
+
+.cf-chart-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cf-chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #18181b;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+[data-theme="dark"] .cf-chart-title {
+  color: #f8fafc;
+}
+
+.cf-chart-legend {
+  font-size: 12px;
+  color: #71717a;
+}
+
+.cf-chart-canvas-mock {
+  height: 160px;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding-top: 1rem;
+}
+
+.cf-chart-bar-col {
+  flex: 1;
+  background: #0051c3;
+  border-radius: 2px 2px 0 0;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+
+.cf-chart-bar-col:hover {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   6. SETTINGS TAB: 2-COLUMN LAYOUT WITH RIGHT STICKY TOC
+   ========================================================================== */
+.cf-settings-split-grid {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .cf-settings-split-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cf-settings-cards-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cf-setting-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+[data-theme="dark"] .cf-setting-card {
+  background-color: #070a12;
+  border-color: #1e293b;
+}
+
+.cf-setting-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cf-setting-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #18181b;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+[data-theme="dark"] .cf-setting-title {
+  color: #f8fafc;
+}
+
+.cf-setting-desc {
+  font-size: 14px;
+  color: #71717a;
+  line-height: 1.45;
+  margin: 0;
+}
+
+[data-theme="dark"] .cf-setting-desc {
+  color: #a1a1aa;
+}
+
+/* Right TOC Rail ("On this page") */
+.cf-settings-toc-rail {
+  position: sticky;
+  top: 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid #e2e8f0;
+}
+
+[data-theme="dark"] .cf-settings-toc-rail {
+  border-left-color: #1e293b;
+}
+
+.cf-toc-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.cf-toc-link {
+  font-size: 13px;
+  color: #71717a;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  padding: 2px 0;
+}
+
+.cf-toc-link:hover {
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-toc-link:hover {
+  color: #f8fafc;
+}
+
+.cf-toc-link.danger {
+  color: #dc2626;
+}
+
+/* Danger Zone Card */
+.cf-danger-card {
+  border-color: #fecaca;
+  background-color: #ffffff;
+}
+
+[data-theme="dark"] .cf-danger-card {
+  border-color: rgba(239, 68, 68, 0.3);
+  background-color: #070a12;
+}
+
+.cf-danger-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  gap: 1rem;
+}
+
+.cf-danger-action-row + .cf-danger-action-row {
+  border-top: 1px solid #f3f4f6;
+}
+
+[data-theme="dark"] .cf-danger-action-row + .cf-danger-action-row {
+  border-top-color: #1e293b;
+}

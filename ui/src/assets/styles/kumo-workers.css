@@ -1,0 +1,721 @@
+/* ==========================================================================
+   CLOUDFLARE KUMO DESIGN SYSTEM: WORKERS & PAGES (100% 1:1 AUTHENTIC CLONE)
+   Single Centered Stream — Pixel-Accurate to Cloudflare Production Dashboard
+   ========================================================================== */
+
+.cf-workers-page-real {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: calc(100vh - 58px);
+  background-color: var(--kumo-base, #ffffff);
+  color: var(--text-color-kumo-default, #18181b);
+  margin: -1.75rem -2.25rem; /* Bleed to page borders */
+  padding: 0;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+}
+
+[data-theme="dark"] .cf-workers-page-real {
+  background-color: #0b0f19;
+  color: #f8fafc;
+}
+
+/* Central Centered Container (Max 1100px) */
+.cf-workers-container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 2rem 4rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   1. PAGE HEADER ROW
+   ========================================================================== */
+.cf-wp-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cf-wp-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cf-wp-h1-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.cf-wp-h1 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  color: var(--text-color-kumo-default, #18181b);
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+[data-theme="dark"] .cf-wp-h1 {
+  color: #f8fafc;
+}
+
+/* Inline "View docs" pill badge */
+.cf-wp-view-docs-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-color-kumo-default, #18181b);
+  background-color: #ffffff;
+  border: 1px solid var(--color-kumo-line, #e2e8f0);
+  border-radius: 9999px;
+  padding: 2px 8px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.cf-wp-view-docs-pill:hover {
+  background-color: #f4f4f5;
+  border-color: #cbd5e1;
+}
+
+[data-theme="dark"] .cf-wp-view-docs-pill {
+  background-color: #0c0f17;
+  border-color: #1e293b;
+  color: #f8fafc;
+}
+
+.cf-wp-subtitle {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-color-kumo-subtle, #71717a);
+  margin: 0;
+  max-width: 750px;
+}
+
+/* Create application CTA button */
+.cf-wp-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff !important;
+  background-color: #0051c3;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent);
+  border: 1px solid #0043a4;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 81, 195, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: background-color 0.15s ease;
+  text-decoration: none;
+}
+
+.cf-wp-create-btn:hover {
+  background-color: #003d99;
+}
+
+/* ==========================================================================
+   2. USAGE PANEL (ProductUsagePanel)
+   ========================================================================== */
+.cf-wp-usage-panel {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border: 1px solid var(--color-kumo-line, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+[data-theme="dark"] .cf-wp-usage-panel {
+  background-color: #0c0f17;
+  border-color: #1e293b;
+}
+
+.cf-wp-usage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-kumo-line, #f4f4f5);
+}
+
+[data-theme="dark"] .cf-wp-usage-header {
+  border-bottom-color: #1e293b;
+}
+
+.cf-wp-usage-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-color-kumo-subtle, #71717a);
+}
+
+.cf-wp-usage-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cf-wp-time-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-color-kumo-default, #18181b);
+  background-color: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .cf-wp-time-pill {
+  background-color: #151a26;
+  border-color: #27272a;
+  color: #f8fafc;
+}
+
+.cf-wp-upgrade-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0051c3;
+  background-color: rgba(0, 81, 195, 0.08);
+  border: 1px solid rgba(0, 81, 195, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cf-wp-upgrade-btn:hover {
+  background-color: rgba(0, 81, 195, 0.14);
+}
+
+.cf-wp-usage-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 1rem;
+}
+
+.cf-wp-usage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0;
+}
+
+.cf-wp-usage-row + .cf-wp-usage-row {
+  border-top: 1px dashed var(--color-kumo-line, #e2e8f0);
+}
+
+[data-theme="dark"] .cf-wp-usage-row + .cf-wp-usage-row {
+  border-top-color: #1e293b;
+}
+
+.cf-wp-usage-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 13px;
+  color: var(--text-color-kumo-default, #18181b);
+}
+
+[data-theme="dark"] .cf-wp-usage-left {
+  color: #f8fafc;
+}
+
+.cf-wp-usage-right {
+  font-size: 13px;
+  color: var(--text-color-kumo-subtle, #71717a);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-wp-donut-mini {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #e2e8f0;
+  border-top-color: #0051c3;
+  transform: rotate(45deg);
+}
+
+/* ==========================================================================
+   3. UNIFIED JOINED TOOLBAR (Segmented 1-Line Bar)
+   ========================================================================== */
+.cf-wp-toolbar-joined {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid var(--color-kumo-line, #d1d5db);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+[data-theme="dark"] .cf-wp-toolbar-joined {
+  background-color: #0c0f17;
+  border-color: #27272a;
+}
+
+.cf-wp-tb-search {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  padding: 0 0.75rem;
+  gap: 0.5rem;
+}
+
+.cf-wp-tb-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-wp-tb-input {
+  color: #f8fafc;
+}
+
+.cf-wp-tb-divider {
+  width: 1px;
+  height: 100%;
+  background-color: var(--color-kumo-line, #e2e8f0);
+}
+
+[data-theme="dark"] .cf-wp-tb-divider {
+  background-color: #27272a;
+}
+
+.cf-wp-tb-select {
+  height: 100%;
+  padding: 0 1.75rem 0 0.75rem;
+  font-size: 13px;
+  color: #18181b;
+  background-color: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 13px;
+}
+
+[data-theme="dark"] .cf-wp-tb-select {
+  color: #f8fafc;
+}
+
+.cf-wp-tb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cf-wp-tb-btn:hover {
+  background-color: #f4f4f5;
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-wp-tb-btn:hover {
+  background-color: #151a26;
+  color: #f8fafc;
+}
+
+/* ==========================================================================
+   4. TWO-TIER APPLICATION CARD (1:1 Cloudflare Kumo LayerCard)
+   ========================================================================== */
+.cf-wp-app-card-two-tier {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border: 1px solid var(--color-kumo-line, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+[data-theme="dark"] .cf-wp-app-card-two-tier {
+  background-color: #0c0f17;
+  border-color: #1e293b;
+}
+
+.cf-wp-app-card-two-tier:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* Tier 1: Main Header (74px) */
+.cf-wp-card-tier-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background-color: #ffffff;
+  gap: 1rem;
+}
+
+[data-theme="dark"] .cf-wp-card-tier-main {
+  background-color: #0c0f17;
+}
+
+.cf-wp-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.cf-wp-logo-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: rgba(246, 130, 31, 0.1);
+  color: #f6821f;
+  flex-shrink: 0;
+}
+
+.cf-wp-identity-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.cf-wp-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cf-wp-app-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #18181b;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="dark"] .cf-wp-app-title {
+  color: #f8fafc;
+}
+
+.cf-wp-domain-subrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 13px;
+  color: #71717a;
+}
+
+.cf-wp-domain-url {
+  color: #0051c3;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cf-wp-badge-extra {
+  font-size: 11px;
+  color: #71717a;
+  background-color: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  border-radius: 9999px;
+  padding: 0 6px;
+}
+
+[data-theme="dark"] .cf-wp-badge-extra {
+  background-color: #151a26;
+  border-color: #27272a;
+}
+
+.cf-wp-card-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.cf-wp-repo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: #18181b;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  padding: 2px 8px;
+}
+
+[data-theme="dark"] .cf-wp-repo-pill {
+  background-color: #151a26;
+  border-color: #27272a;
+  color: #f8fafc;
+}
+
+.cf-wp-time-text {
+  font-size: 12px;
+  color: #71717a;
+}
+
+/* Tier 2: Sub-footer Bar (40px) */
+.cf-wp-card-tier-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 1.25rem;
+  background-color: #fafafa;
+  border-top: 1px solid var(--color-kumo-line, #f4f4f5);
+  font-size: 12px;
+  color: #71717a;
+}
+
+[data-theme="dark"] .cf-wp-card-tier-footer {
+  background-color: #070a12;
+  border-top-color: #1e293b;
+}
+
+.cf-wp-commit-msg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #71717a;
+  max-width: 500px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-wp-card-telemetry {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-wp-telem-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ==========================================================================
+   5. PAGINATION ROW
+   ========================================================================== */
+.cf-wp-pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 13px;
+  color: #71717a;
+}
+
+.cf-wp-page-controls {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-kumo-line, #d1d5db);
+  border-radius: 6px;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .cf-wp-page-controls {
+  background-color: #0c0f17;
+  border-color: #27272a;
+}
+
+.cf-wp-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.cf-wp-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cf-wp-page-num {
+  width: 44px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--color-kumo-line, #e2e8f0);
+  border-right: 1px solid var(--color-kumo-line, #e2e8f0);
+  font-size: 13px;
+  font-weight: 500;
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-wp-page-num {
+  border-color: #27272a;
+  color: #f8fafc;
+}
+
+/* ==========================================================================
+   6. BOTTOM STREAM CARDS (Account details & Cloudflare Access)
+   ========================================================================== */
+.cf-wp-bottom-cards-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.cf-wp-stream-card {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border: 1px solid var(--color-kumo-line, #e2e8f0);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .cf-wp-stream-card {
+  background-color: #0c0f17;
+  border-color: #1e293b;
+}
+
+.cf-wp-stream-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #18181b;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.85rem 0;
+}
+
+[data-theme="dark"] .cf-wp-stream-card-title {
+  color: #f8fafc;
+}
+
+.cf-wp-stream-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0;
+  font-size: 13px;
+}
+
+.cf-wp-stream-row + .cf-wp-stream-row {
+  border-top: 1px solid var(--color-kumo-line, #f4f4f5);
+}
+
+[data-theme="dark"] .cf-wp-stream-row + .cf-wp-stream-row {
+  border-top-color: #1e293b;
+}
+
+.cf-wp-stream-label {
+  color: #71717a;
+}
+
+.cf-wp-stream-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #18181b;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+[data-theme="dark"] .cf-wp-stream-val {
+  color: #f8fafc;
+}
+
+/* Switch toggle */
+.cf-wp-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.cf-wp-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.cf-wp-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #e4e4e7;
+  border-radius: 9999px;
+  transition: .2s;
+}
+
+.cf-wp-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+input:checked + .cf-wp-slider {
+  background-color: #0051c3;
+}
+
+input:checked + .cf-wp-slider:before {
+  transform: translateX(16px);
+}

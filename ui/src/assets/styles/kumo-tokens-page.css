@@ -1,0 +1,565 @@
+/* ==========================================================================
+   CLOUDFLARE KUMO DESIGN SYSTEM: R2 API TOKENS (PIXEL-PERFECT EXTRACT)
+   ========================================================================== */
+
+.cf-tokens-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--kumo-base, #ffffff);
+  color: var(--text-color-kumo-default, #18181b);
+  padding: 2rem 2.5rem;
+  margin: -2rem; /* Full bleed without container clipping */
+  gap: 2rem;
+  font-family: "Inter Variable", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+[data-theme="dark"] .cf-tokens-page {
+  background-color: #0b0f19;
+  color: #f8fafc;
+}
+
+/* ==========================================================================
+   1. BREADCRUMBS
+   ========================================================================== */
+.cf-tokens-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  gap: 0.35rem;
+  font-size: 0.875rem; /* 14px */
+  color: #737373;
+}
+
+[data-theme="dark"] .cf-tokens-breadcrumb-bar {
+  color: #a3a3a3;
+}
+
+.cf-tokens-breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #737373;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.cf-tokens-breadcrumb-link:hover {
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-tokens-breadcrumb-link:hover {
+  color: #f8fafc;
+}
+
+.cf-tokens-breadcrumb-chevron {
+  width: 20px;
+  height: 20px;
+  color: #d4d4d4;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .cf-tokens-breadcrumb-chevron {
+  color: #525252;
+}
+
+.cf-tokens-breadcrumb-current {
+  color: #18181b;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .cf-tokens-breadcrumb-current {
+  color: #f8fafc;
+}
+
+/* ==========================================================================
+   2. MAIN HEADING & SECTION HEADINGS
+   ========================================================================== */
+.cf-tokens-main-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 25px;
+  color: #18181b;
+  margin: 0;
+}
+
+[data-theme="dark"] .cf-tokens-main-title {
+  color: #f8fafc;
+}
+
+.cf-tokens-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.cf-tokens-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #18181b;
+  margin: 0 0 8px 0; /* mb-2 */
+}
+
+[data-theme="dark"] .cf-tokens-section-title {
+  color: #f8fafc;
+}
+
+.cf-tokens-desc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.cf-tokens-desc-text {
+  font-size: 14px;
+  line-height: 20px;
+  color: #737373;
+  max-width: 48rem; /* 768px */
+  margin: 0;
+  flex: 1 1 40rem;
+}
+
+[data-theme="dark"] .cf-tokens-desc-text {
+  color: #a3a3a3;
+}
+
+/* ==========================================================================
+   3. CLOUDFLARE 3D KUMO BUTTON (Exact Gradients & Inset Highlight)
+   ========================================================================== */
+.cf-tokens-btn-kumo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-width: 190px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #ffffff !important;
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 0 0 1px #004ab7, 0 1px 2px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  overflow: hidden;
+  user-select: none;
+}
+
+.cf-tokens-btn-kumo .cf-btn-gloss {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, #236dfa, #0051c7);
+  box-shadow: inset 0 1px 0 0 #478bff;
+  transition: background 0.15s ease;
+  pointer-events: none;
+}
+
+.cf-tokens-btn-kumo:hover .cf-btn-gloss {
+  background: linear-gradient(to bottom, #478bff, #0051c7);
+}
+
+.cf-tokens-btn-kumo .cf-btn-label {
+  position: relative;
+  z-index: 2;
+}
+
+.cf-tokens-btn-kumo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   4. EMPTY STATE CARD
+   ========================================================================== */
+.cf-tokens-empty-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  background-color: #ffffff;
+  color: #737373;
+  font-size: 14px;
+}
+
+[data-theme="dark"] .cf-tokens-empty-card {
+  border-color: #27272a;
+  background-color: #070a12;
+  color: #a3a3a3;
+}
+
+/* ==========================================================================
+   5. TOKENS TABLE (Exact 44px Row Height & Normal Font Weight)
+   ========================================================================== */
+.cf-tokens-table-card {
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: visible;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .cf-tokens-table-card {
+  background-color: #070a12;
+  border-color: #27272a;
+}
+
+.cf-tokens-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.cf-tokens-table thead th {
+  height: 44px;
+  min-height: 44px;
+  padding: 8px 16px;
+  background-color: #fafafa;
+  color: #737373;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  user-select: none;
+}
+
+[data-theme="dark"] .cf-tokens-table thead th {
+  background-color: #0b0f19;
+  border-bottom-color: #27272a;
+  color: #a3a3a3;
+}
+
+.cf-tokens-table tbody tr {
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  transition: background-color 0.12s ease;
+  height: 44px;
+}
+
+[data-theme="dark"] .cf-tokens-table tbody tr {
+  border-top-color: #27272a;
+}
+
+.cf-tokens-table tbody tr:hover {
+  background-color: #f8f8f8;
+}
+
+[data-theme="dark"] .cf-tokens-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.cf-tokens-table tbody td {
+  height: 44px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 400; /* Cloudflare token name is normal weight, NOT BOLD */
+  color: #18181b;
+  vertical-align: middle;
+}
+
+[data-theme="dark"] .cf-tokens-table tbody td {
+  color: #f8fafc;
+}
+
+/* Status Badge: Active */
+.cf-tokens-badge-active {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: #047857;
+  background-color: rgba(16, 185, 129, 0.12);
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .cf-tokens-badge-active {
+  color: #34d399;
+  background-color: rgba(52, 211, 153, 0.15);
+}
+
+/* ==========================================================================
+   6. ACTIONS 3-DOTS BUTTON & ANIMATED POPOVER
+   ========================================================================== */
+.cf-tokens-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #18181b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.cf-tokens-action-btn:hover {
+  background-color: #f4f4f5;
+}
+
+[data-theme="dark"] .cf-tokens-action-btn:hover {
+  background-color: #27272a;
+  color: #f8fafc;
+}
+
+/* Popover Menu with Spring-Scale Animation */
+.cf-tokens-menu-popover {
+  position: absolute;
+  right: 1.25rem;
+  top: 100%;
+  margin-top: 4px;
+  min-width: 144px;
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  padding: 6px;
+  transform-origin: top right;
+  animation: cfMenuPop 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme="dark"] .cf-tokens-menu-popover {
+  background-color: #0b0f19;
+  border-color: #27272a;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes cfMenuPop {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.cf-tokens-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 14px;
+  color: #18181b;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.12s ease;
+}
+
+[data-theme="dark"] .cf-tokens-menu-item {
+  color: #f8fafc;
+}
+
+.cf-tokens-menu-item:hover {
+  background-color: #f4f4f5;
+}
+
+[data-theme="dark"] .cf-tokens-menu-item:hover {
+  background-color: #27272a;
+}
+
+.cf-tokens-menu-item.danger {
+  color: #dc2626;
+}
+
+.cf-tokens-menu-item.danger:hover {
+  background-color: rgba(220, 38, 38, 0.06);
+}
+
+/* ==========================================================================
+   7. CREATE TOKEN FORM
+   ========================================================================== */
+.cf-token-create-card {
+  max-width: 800px;
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+[data-theme="dark"] .cf-token-create-card {
+  background-color: #070a12;
+  border-color: #27272a;
+}
+
+.cf-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cf-form-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-form-title {
+  color: #f8fafc;
+}
+
+.cf-form-subtext {
+  font-size: 13px;
+  color: #737373;
+  line-height: 1.45;
+  margin: 0;
+}
+
+[data-theme="dark"] .cf-form-subtext {
+  color: #a3a3a3;
+}
+
+/* Radio Selection Cards (Permissions) */
+.cf-perm-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.cf-perm-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .cf-perm-option {
+  border-color: #27272a;
+}
+
+.cf-perm-option:hover {
+  background-color: #fafafa;
+}
+
+[data-theme="dark"] .cf-perm-option:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.cf-perm-option.active {
+  border-color: #0051c7;
+  background-color: rgba(0, 81, 199, 0.03);
+}
+
+[data-theme="dark"] .cf-perm-option.active {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.cf-perm-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cf-perm-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #18181b;
+}
+
+[data-theme="dark"] .cf-perm-name {
+  color: #f8fafc;
+}
+
+.cf-perm-desc {
+  font-size: 12px;
+  color: #737373;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .cf-perm-desc {
+  color: #a3a3a3;
+}
+
+/* Input Styles */
+.cf-input-control {
+  height: 38px;
+  padding: 0 0.75rem;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  color: #18181b;
+  outline: none;
+  width: 100%;
+}
+
+[data-theme="dark"] .cf-input-control {
+  background-color: #0b0f19;
+  border-color: #27272a;
+  color: #f8fafc;
+}
+
+.cf-input-control:focus {
+  border-color: #0051c7;
+  box-shadow: 0 0 0 2px rgba(0, 81, 199, 0.15);
+}
+
+/* Form Action Buttons Bar */
+.cf-form-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+[data-theme="dark"] .cf-form-actions-bar {
+  border-top-color: #27272a;
+}
+
+.cf-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 1rem;
+  font-size: 14px;
+  font-weight: 500;
+  color: #18181b;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .cf-btn-outline {
+  background-color: #0b0f19;
+  border-color: #27272a;
+  color: #f8fafc;
+}
+
+.cf-btn-outline:hover {
+  background-color: #f4f4f5;
+}
+
+[data-theme="dark"] .cf-btn-outline:hover {
+  background-color: #27272a;
+}
