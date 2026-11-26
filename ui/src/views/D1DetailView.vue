@@ -1,144 +1,159 @@
 <template>
-  <div>
+  <div class="db-page">
     <div class="breadcrumbs">
-      <router-link to="/d1">D1 Databases</router-link>
+      <router-link to="/d1">Databases</router-link>
       <span class="divider">/</span>
-      <span class="current">{{ db.name }}</span>
+      <span class="current">{{ info?.database?.name || id }}</span>
     </div>
 
-    <div class="page-title-row">
-      <div>
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <h1 class="page-title">🗄️ {{ db.name }}</h1>
-          <span class="cf-pill active"><span class="status-dot"></span><span>Active</span></span>
-          <span class="badge-tag-beta">SQLite 3.45</span>
+    <p v-if="error" class="db-error" role="alert">{{ error }}</p>
+    <p v-if="loading" class="db-muted">Loading…</p>
+
+    <template v-if="info">
+      <div class="page-title-row">
+        <div class="db-title">
+          <h1 class="page-title">{{ info.database.name }}</h1>
+          <span :class="['db-status', info.database.status]">{{ info.database.status }}</span>
         </div>
-        <p class="page-subtitle">UUID: <code>{{ db.id }}</code> (Region: {{ db.location }})</p>
-      </div>
-      <div style="display: flex; gap: 0.5rem;">
-        <button class="btn-cf btn-cf-secondary" @click="copyUuid">
-          {{ copiedUuid ? '✓ Copied UUID' : 'Copy Database UUID' }}
-        </button>
-        <button class="btn-cf btn-cf-primary" @click="executeSql">Run SQL Query</button>
-      </div>
-    </div>
-
-    <!-- D1 Top Tabs Navigation -->
-    <div class="cf-tab-nav">
-      <button class="cf-tab-btn" :class="{ active: subTab === 'console' }" @click="subTab = 'console'">SQL Console</button>
-      <button class="cf-tab-btn" :class="{ active: subTab === 'tables' }" @click="subTab = 'tables'">Tables & Schema ({{ db.tables.length }})</button>
-      <button class="cf-tab-btn" :class="{ active: subTab === 'metrics' }" @click="subTab = 'metrics'">Metrics & Units</button>
-      <button class="cf-tab-btn" :class="{ active: subTab === 'time-travel' }" @click="subTab = 'time-travel'">Time Travel Backups</button>
-    </div>
-
-    <!-- SQL Console Tab -->
-    <div v-if="subTab === 'console'">
-      <div class="d1-sql-console">
-        <div class="d1-sql-console-head">
-          <span style="color: #f8fafc; font-weight: 600;">Interactive D1 SQL Runner</span>
-          <div style="display: flex; gap: 0.5rem;">
-            <button class="btn-cf btn-cf-primary btn-cf-sm" @click="executeSql">▶ Execute (Ctrl+Enter)</button>
-          </div>
-        </div>
-        <textarea
-          v-model="sqlQuery"
-          class="d1-sql-editor"
-          @keydown.ctrl.enter="executeSql"
-        ></textarea>
       </div>
 
-      <!-- Query Results -->
-      <div class="kumo-table-container" style="margin-top: 1.5rem;">
-        <div class="table-header-title">
-          <span>Query Results ({{ results.length }} rows returned in {{ execDuration }}ms)</span>
-          <span class="cf-pill active"><span class="status-dot"></span><span>200 OK</span></span>
-        </div>
-        <table class="kumo-table">
-          <thead>
-            <tr>
-              <th>id</th>
-              <th>title</th>
-              <th>lang</th>
-              <th>author</th>
-              <th>downloads</th>
-              <th>status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in results" :key="r.id">
-              <td><code>{{ r.id }}</code></td>
-              <td><strong>{{ r.title }}</strong></td>
-              <td><span class="badge-tag-beta">{{ r.lang }}</span></td>
-              <td>{{ r.author }}</td>
-              <td>{{ r.downloads.toLocaleString() }}</td>
-              <td><span class="cf-pill active"><span class="status-dot"></span><span>{{ r.status }}</span></span></td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Actions -->
+      <div class="db-actions">
+        <button class="btn-cf btn-cf-primary" :disabled="busy" @click="run('start')">Start</button>
+        <button class="btn-cf btn-cf-secondary" :disabled="busy" @click="run('restart')">Restart</button>
+        <button class="btn-cf btn-cf-secondary" :disabled="busy" @click="run('stop')">Stop</button>
+        <button class="btn-cf btn-cf-secondary" :disabled="busy" @click="run('backup')">Backup now</button>
+        <button class="btn-cf btn-cf-danger" :disabled="busy" @click="remove">Delete</button>
       </div>
-    </div>
+      <p v-if="notice" class="db-notice">{{ notice }}</p>
 
-    <!-- Tables & Schema Tab -->
-    <div v-else-if="subTab === 'tables'" class="kumo-table-container">
-      <table class="kumo-table">
-        <thead>
-          <tr>
-            <th>Table Name</th>
-            <th>Rows Count</th>
-            <th>Columns</th>
-            <th>Table Size</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="t in db.tables" :key="t.name">
-            <td><strong>{{ t.name }}</strong></td>
-            <td>{{ t.rows.toLocaleString() }}</td>
-            <td>{{ t.columns }}</td>
-            <td>{{ t.size }}</td>
-            <td>
-              <button class="btn-cf btn-cf-secondary btn-cf-sm" @click="queryTable(t.name)">SELECT *</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <!-- Details -->
+      <div class="db-card">
+        <h2 class="db-h2">Connection</h2>
+        <dl class="db-dl">
+          <dt>Engine</dt><dd>{{ info.database.engine }} {{ info.database.version }}</dd>
+          <dt>Admin user</dt><dd>{{ info.database.admin_user }}</dd>
+          <dt>Port (this server only)</dt><dd>{{ info.database.port }}</dd>
+          <dt>Size</dt><dd>{{ info.database.ram_profile }}</dd>
+          <dt>Password</dt><dd><code class="db-uri">{{ info.password }}</code></dd>
+          <dt>Connection string</dt><dd><code class="db-uri">{{ info.tcp_uri }}</code></dd>
+        </dl>
+        <p class="db-muted">The database listens on 127.0.0.1 only. Apps on this server connect with the string above.</p>
+      </div>
 
-    <!-- Metrics Tab -->
-    <div v-else class="stats-overview-grid">
-      <MetricCard label="Row Reads (24h)" :value="db.read_units_24h" delta="↗ 14.8%" strokeColor="#059669" footer="Anycast local edge reads" />
-      <MetricCard label="Row Writes (24h)" :value="db.write_units_24h" delta="↘ 2.1%" strokeColor="var(--cf-brand-orange)" footer="Leader replicate write" />
-      <MetricCard label="Total Queries" :value="db.queries_count" delta="↗ 8.2%" strokeColor="#0051c3" footer="Prepared statements" />
-      <MetricCard label="Database Size" :value="db.size" strokeColor="#7c3aed" footer="Limit: 10 GB Included" />
-    </div>
+      <!-- Logs -->
+      <div class="db-card">
+        <h2 class="db-h2">Logs</h2>
+        <pre class="db-logs">{{ logs.length ? logs.join('\n') : 'No log lines yet.' }}</pre>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { mockData } from '@/data/mockData.js'
-import MetricCard from '@/components/MetricCard.vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { api } from '@/composables/api.js'
 
-const db = mockData.databases[0]
-const subTab = ref('console')
-const sqlQuery = ref("SELECT id, title, lang, author, downloads, status FROM code_snippets WHERE status = 'published' LIMIT 10;")
-const results = ref([...db.sampleQueryResults])
-const execDuration = ref('0.8')
-const copiedUuid = ref(false)
+const route = useRoute()
+const router = useRouter()
+const id = computed(() => route.params.id)
 
-function executeSql() {
-  execDuration.value = (Math.random() * 0.8 + 0.4).toFixed(1)
-  alert(`Executing SQL on ${db.name}:\n${sqlQuery.value}\n5 rows returned in ${execDuration.value}ms`)
+const info = ref(null)
+const logs = ref([])
+const loading = ref(true)
+const busy = ref(false)
+const error = ref('')
+const notice = ref('')
+
+const load = async () => {
+  try {
+    info.value = await api(`/api/v1/databases/${id.value}`)
+    error.value = ''
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    loading.value = false
+  }
 }
 
-function queryTable(name) {
-  sqlQuery.value = `SELECT * FROM ${name} LIMIT 10;`
-  subTab.value = 'console'
+const loadLogs = async () => {
+  try {
+    const res = await api(`/api/v1/databases/${id.value}/logs?tail=200`)
+    logs.value = res.lines || []
+  } catch (e) {}
 }
 
-function copyUuid() {
-  if (navigator.clipboard) navigator.clipboard.writeText(db.id)
-  copiedUuid.value = true
-  setTimeout(() => { copiedUuid.value = false }, 2000)
+const run = async (action) => {
+  busy.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const res = await api(`/api/v1/databases/${id.value}/${action}`, { method: 'POST' })
+    notice.value = res.path ? `Backup saved at ${res.path}` : `Done: ${action}`
+    await load()
+    await loadLogs()
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    busy.value = false
+  }
 }
+
+const remove = async () => {
+  if (!window.confirm(`Delete ${info.value?.database?.name}? Its data is removed and cannot be recovered.`)) return
+  busy.value = true
+  try {
+    await api(`/api/v1/databases/${id.value}`, { method: 'DELETE' })
+    router.push('/d1')
+  } catch (e) {
+    error.value = e.message
+    busy.value = false
+  }
+}
+
+let timer
+onMounted(() => {
+  load()
+  loadLogs()
+  timer = setInterval(() => { load(); loadLogs() }, 5000)
+})
+onUnmounted(() => clearInterval(timer))
+watch(id, () => { loading.value = true; load(); loadLogs() })
 </script>
+
+<style scoped>
+.db-page { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.db-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; min-width: 0; }
+.db-title .page-title { overflow-wrap: anywhere; }
+.db-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.db-card {
+  background: var(--kumo-base, #fff);
+  border: 1px solid var(--kumo-border, #e2e4e8);
+  border-radius: 10px;
+  padding: 1rem;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.db-h2 { font-size: 15px; margin: 0 0 0.75rem; }
+.db-dl { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr); gap: 0.5rem 1rem; margin: 0; }
+.db-dl dt { color: #6b7280; font-size: 13px; }
+.db-dl dd { margin: 0; min-width: 0; }
+.db-uri { font-size: 12px; word-break: break-all; white-space: pre-wrap; display: block; }
+.db-logs {
+  background: #0f1115; color: #d1d5db; padding: 0.75rem; border-radius: 8px;
+  font-size: 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 0;
+}
+.db-status { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #e5e7eb; color: #374151; }
+.db-status.running { background: #dcfce7; color: #166534; }
+.db-status.stopped { background: #fee2e2; color: #991b1b; }
+.db-muted { font-size: 13px; color: #6b7280; margin: 0.5rem 0 0; }
+.db-error { color: #b91c1c; font-size: 13px; margin: 0; }
+.db-notice { font-size: 13px; color: #166534; margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 680px) {
+  .db-dl { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+  .db-dl dt { margin-top: 0.5rem; }
+  .db-actions .btn-cf { flex: 1 1 calc(50% - 0.25rem); }
+}
+</style>
