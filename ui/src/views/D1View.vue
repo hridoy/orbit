@@ -33,10 +33,16 @@
       <label>
         Version
         <select v-model="form.version" :disabled="!currentVersions.length">
-          <option v-for="v in currentVersions" :key="v" :value="v">{{ v }}</option>
-          <option v-if="!currentVersions.length" value="">None installed on this server</option>
+          <option v-for="v in currentVersions" :key="v.version" :value="v.version">
+            {{ v.version }}{{ v.status === 'installed' ? '' : ' (' + statusLabel(v) + ')' }}
+          </option>
         </select>
-        <span class="db-muted">Only versions installed on this server are listed.</span>
+        <span v-if="selectedVersion && selectedVersion.status !== 'installed'" class="db-install">
+          <span class="db-muted">{{ selectedVersion.status === 'installing' ? 'Installing now. This can take several minutes.' : selectedVersion.error || 'Not installed on this server yet.' }}</span>
+          <button v-if="selectedVersion.status !== 'installing'" type="button" class="btn-cf btn-cf-secondary" :disabled="installing" @click="installSelected">
+            Install {{ selectedVersion.version }}
+          </button>
+        </span>
       </label>
       <label>
         Username
@@ -59,7 +65,7 @@
           <option v-for="p in profiles" :key="p.value" :value="p.value">{{ p.label }}</option>
         </select>
       </label>
-      <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy || !form.version">
+      <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy || !selectedInstalled">
         {{ busy ? 'Creating…' : 'Create database' }}
       </button>
       <div v-if="created" class="db-card db-created">
@@ -116,9 +122,28 @@ const profiles = [
 ]
 const form = ref({ name: '', engine: '', version: '', username: '', password: '', ram_profile: 'micro' })
 const currentVersions = computed(() => engines.value.find((e) => e.engine === form.value.engine)?.versions || [])
+const selectedVersion = computed(() => currentVersions.value.find((v) => v.version === form.value.version) || null)
+const selectedInstalled = computed(() => !!selectedVersion.value && selectedVersion.value.status === 'installed')
+const installing = ref(false)
+
+const statusLabel = (v) => ({ installing: 'installing', failed: 'install failed', available: 'not installed' }[v.status] || v.status)
 
 const pickEngine = () => {
-  form.value.version = currentVersions.value[0] || ''
+  const first = currentVersions.value.find((v) => v.status === 'installed') || currentVersions.value[0]
+  form.value.version = first ? first.version : ''
+}
+
+const installSelected = async () => {
+  installing.value = true
+  error.value = ''
+  try {
+    await api(`/api/v1/databases/engines/${form.value.engine}/${form.value.version}/install`, { method: 'POST' })
+    await loadEngines()
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    installing.value = false
+  }
 }
 
 const loadEngines = async () => {
@@ -171,7 +196,7 @@ onMounted(() => {
   load()
   timer = setInterval(load, 5000)
 })
-onUnmounted(() => clearInterval(timer))
+onUnmounted(() => { clearInterval(timer); clearInterval(enginesTimer) })
 </script>
 
 <style scoped>
@@ -202,6 +227,7 @@ onUnmounted(() => clearInterval(timer))
 .db-created { display: flex; flex-direction: column; gap: 0.5rem; background: #fffbeb; }
 .db-uri { font-size: 12px; word-break: break-all; white-space: pre-wrap; }
 .db-form select:disabled { opacity: 0.6; }
+.db-install { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .db-pass { display: flex; gap: 0.5rem; }
 .db-pass input { flex: 1 1 auto; min-width: 0; }
 .db-eye { padding: 0 12px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: inherit; cursor: pointer; font-size: 13px; }

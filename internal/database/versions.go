@@ -26,11 +26,11 @@ const nativeVersion = "native"
 // candidate binary locations per engine. Globs let several installed versions appear.
 var candidates = map[string][]string{
 	"postgres": {"/usr/lib/postgresql/*/bin/postgres"},
-	"mysql":    {"/usr/local/mysql*/bin/mysqld"},
-	"mariadb":  {"/usr/sbin/mariadbd", "/usr/bin/mariadbd", "/usr/local/mariadb*/bin/mariadbd"},
-	"redis":    {"/usr/bin/redis-server", "/usr/local/redis*/bin/redis-server"},
-	"mongodb":  {"/usr/bin/mongod", "/usr/local/mongodb*/bin/mongod"},
-	"libsql":   {"/usr/bin/sqld", "/usr/local/bin/sqld"},
+	"mysql":    {"/usr/local/mysql*/bin/mysqld", enginesRoot + "/mysql/*/bin/mysqld"},
+	"mariadb":  {"/usr/sbin/mariadbd", "/usr/bin/mariadbd", "/usr/local/mariadb*/bin/mariadbd", enginesRoot + "/mariadb/*/bin/mariadbd"},
+	"redis":    {"/usr/bin/redis-server", "/usr/local/redis*/bin/redis-server", enginesRoot + "/redis/*/bin/redis-server"},
+	"mongodb":  {"/usr/bin/mongod", "/usr/local/mongodb*/bin/mongod", enginesRoot + "/mongodb/*/bin/mongod"},
+	"libsql":   {"/usr/bin/sqld", "/usr/local/bin/sqld", enginesRoot + "/libsql/*/bin/sqld"},
 }
 
 var versionRe = regexp.MustCompile(`(\d+)\.(\d+)`)
@@ -117,7 +117,13 @@ func (m *DatabaseManager) StartVersionRefresh() {
 // Versions lists the versions installed for each engine, newest first.
 func (m *DatabaseManager) Versions() map[string][]string {
 	out := map[string][]string{}
+	seen := map[string]bool{}
 	for _, inst := range m.installedSnapshot() {
+		key := inst.Engine + "/" + inst.Version
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
 		out[inst.Engine] = append(out[inst.Engine], inst.Version)
 	}
 	return out
@@ -134,7 +140,7 @@ func (m *DatabaseManager) pick(engine, version string) (Installed, error) {
 			return inst, nil
 		}
 	}
-	return Installed{}, fmt.Errorf("%s %s is not installed on this server", engine, version)
+	return Installed{}, fmt.Errorf("%s %s is not installed yet: install it from the version list first", engine, version)
 }
 
 func (m *DatabaseManager) defaultBin(engine string) string {
@@ -179,6 +185,11 @@ func (m *DatabaseManager) mysqlFor(engine, version string) (MySQLEngine, error) 
 	me := *m.mysql
 	if engine == "mariadb" {
 		me.mariadbdBin = inst.Bin
+		// Archives carry their own install script; system packages keep the default one.
+		script := filepath.Join(filepath.Dir(filepath.Dir(inst.Bin)), "scripts", "mariadb-install-db")
+		if _, err := os.Stat(script); err == nil {
+			me.initDbBin = script
+		}
 	} else {
 		me.mysqldBin = inst.Bin
 	}

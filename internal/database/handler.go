@@ -32,6 +32,7 @@ func (h *DatabaseHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/databases", h.handleProvision)
 	mux.HandleFunc("GET /api/v1/databases/engines", h.handleEngines)
 	mux.HandleFunc("GET /api/v1/databases/port-suggestions", h.handlePortSuggestions)
+	mux.HandleFunc("POST /api/v1/databases/engines/{engine}/{version}/install", h.handleInstallVersion)
 	mux.HandleFunc("GET /api/v1/databases/{id}/access", h.handleAccessGet)
 	mux.HandleFunc("PUT /api/v1/databases/{id}/access", h.handleAccessPut)
 	mux.HandleFunc("GET /api/v1/databases", h.handleList)
@@ -197,25 +198,59 @@ func (h *DatabaseHandler) handleGetLogs(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// handleEngines lists the engines this server can run and the versions installed for each.
+// handleEngines lists every engine and each version in the catalog, with its install state:
+// installed, installing, failed, or available.
 func (h *DatabaseHandler) handleEngines(w http.ResponseWriter, r *http.Request) {
-	versions := h.manager.Versions()
+	type version struct {
+		Version string `json:"version"`
+		Status  string `json:"status"`
+		Method  string `json:"method"`
+		Error   string `json:"error,omitempty"`
+	}
 	type engine struct {
-		Engine   string   `json:"engine"`
-		Name     string   `json:"name"`
-		Versions []string `json:"versions"`
+		Engine   string    `json:"engine"`
+		Name     string    `json:"name"`
+		Versions []version `json:"versions"`
 	}
 	names := map[string]string{
 		"postgres": "PostgreSQL", "mysql": "MySQL", "mariadb": "MariaDB",
 		"mongodb": "MongoDB", "redis": "Redis", "libsql": "LibSQL (SQLite)",
 	}
+	installed := h.manager.Versions()
 	out := []engine{}
 	for _, e := range []string{"postgres", "mysql", "mariadb", "mongodb", "redis", "libsql"} {
-		v := versions[e]
-		if v == nil {
-			v = []string{}
+		row := engine{Engine: e, Name: names[e], Versions: []version{}}
+		for _, c := range Catalog {
+			if c.Engine != e {
+				continue
+			}
+			v := version{Version: c.Version, Status: "available", Method: string(c.Method)}
+			if contains(installed[e], c.Version) {
+				v.Status = "installed"
+			} else if st, msg := h.manager.installer.jobStatus(e, c.Version); st != "" {
+				v.Status, v.Error = st, msg
+			}
+			row.Versions = append(row.Versions, v)
 		}
-		out = append(out, engine{Engine: e, Name: names[e], Versions: v})
+		out = append(out, row)
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+func contains(list []string, v string) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
+// handleInstallVersion starts a background install of a catalog version.
+func (h *DatabaseHandler) handleInstallVersion(w http.ResponseWriter, r *http.Request) {
+	if err := h.manager.StartInstall(r.PathValue("engine"), r.PathValue("version")); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "installing"})
 }
