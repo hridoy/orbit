@@ -17,14 +17,12 @@ type MySQLEngine struct {
 }
 
 func NewMySQLEngine() *MySQLEngine {
-	mysqldBin, _ := findBinary("mysqld", []string{
-		"/usr/sbin/mysqld",
-		"/usr/bin/mysqld",
-		"/usr/local/bin/mysqld",
+	// Oracle MySQL 8 is looked up only at the paths where it is installed. The mysqld name on
+	// Ubuntu is usually MariaDB's, which must not be used for the MySQL engine.
+	mysqldBin := firstExisting(
 		"/usr/local/mysql/bin/mysqld",
-		"/opt/homebrew/bin/mysqld",
 		"/opt/homebrew/opt/mysql/bin/mysqld",
-	})
+	)
 
 	mariadbdBin, _ := findBinary("mariadbd", []string{
 		"/usr/sbin/mariadbd",

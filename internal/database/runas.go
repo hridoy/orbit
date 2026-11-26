@@ -83,3 +83,13 @@ func chownDBTree(dir string) error {
 		return os.Lchown(p, int(cred.Uid), int(cred.Gid))
 	})
 }
+
+// firstExisting returns the first path that is a regular file, or "" if none is.
+func firstExisting(paths ...string) string {
+	for _, p := range paths {
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p
+		}
+	}
+	return ""
+}
