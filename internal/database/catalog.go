@@ -31,12 +31,18 @@ var Catalog = []CatalogEntry{
 		URL: "https://cdn.mysql.com/archives/mysql-8.0/mysql-8.0.40-linux-glibc2.28-x86_64.tar.xz"},
 	{Engine: "mysql", Version: "8.4", Method: MethodTarball, Bin: "mysqld",
 		URL: "https://cdn.mysql.com/archives/mysql-8.4/mysql-8.4.3-linux-glibc2.28-x86_64.tar.xz"},
+	{Engine: "mysql", Version: "9.1", Method: MethodTarball, Bin: "mysqld",
+		URL: "https://cdn.mysql.com/archives/mysql-9.1/mysql-9.1.0-linux-glibc2.28-x86_64.tar.xz"},
+	{Engine: "mysql", Version: "9.2", Method: MethodTarball, Bin: "mysqld",
+		URL: "https://cdn.mysql.com/archives/mysql-9.2/mysql-9.2.0-linux-glibc2.28-x86_64.tar.xz"},
 
 	{Engine: "mariadb", Version: "10.6", Method: MethodApt, Pkg: "mariadb-server", Bin: "mariadbd"},
 	{Engine: "mariadb", Version: "10.11", Method: MethodTarball, Bin: "mariadbd",
 		URL: "https://archive.mariadb.org/mariadb-10.11.13/bintar-linux-systemd-x86_64/mariadb-10.11.13-linux-systemd-x86_64.tar.gz"},
 	{Engine: "mariadb", Version: "11.4", Method: MethodTarball, Bin: "mariadbd",
 		URL: "https://archive.mariadb.org/mariadb-11.4.5/bintar-linux-systemd-x86_64/mariadb-11.4.5-linux-systemd-x86_64.tar.gz"},
+	{Engine: "mariadb", Version: "11.8", Method: MethodTarball, Bin: "mariadbd",
+		URL: "https://archive.mariadb.org/mariadb-11.8.2/bintar-linux-systemd-x86_64/mariadb-11.8.2-linux-systemd-x86_64.tar.gz"},
 
 	{Engine: "mongodb", Version: "6.0", Method: MethodTarball, Bin: "mongod",
 		URL: "https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-6.0.19.tgz"},
@@ -51,6 +57,8 @@ var Catalog = []CatalogEntry{
 		URL: "https://download.redis.io/releases/redis-7.2.7.tar.gz"},
 	{Engine: "redis", Version: "7.4", Method: MethodSource, Bin: "redis-server",
 		URL: "https://download.redis.io/releases/redis-7.4.2.tar.gz"},
+	{Engine: "redis", Version: "8.0", Method: MethodSource, Bin: "redis-server",
+		URL: "https://download.redis.io/releases/redis-8.0.2.tar.gz"},
 
 	{Engine: "libsql", Version: "0.24", Method: MethodTarball, Bin: "sqld",
 		URL: "https://github.com/tursodatabase/libsql/releases/download/libsql-server-v0.24.32/libsql-server-x86_64-unknown-linux-gnu.tar.xz"},
