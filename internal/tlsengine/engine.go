@@ -282,6 +282,11 @@ func (e *Engine) renewCloudflareAuto(d *db.TLSDomain) {
 	_ = rec
 }
 
+// Get returns the stored record for a domain, or nil.
+func (e *Engine) Get(domain string) (*db.TLSDomain, error) {
+	return e.store.Get(domain)
+}
+
 // Remove deletes a domain and its certificate and stops serving it.
 func (e *Engine) Remove(domain string) error {
 	d, err := NormalizeDomain(domain)

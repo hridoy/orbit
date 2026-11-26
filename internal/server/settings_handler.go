@@ -89,6 +89,7 @@ type settingsBody struct {
 	EABKID      string `json:"eab_kid,omitempty"`
 	EABHMAC     string `json:"eab_hmac,omitempty"`
 	CertPEM     string `json:"cert_pem,omitempty"`
+	CFToken     string `json:"cf_api_token,omitempty"`
 	KeyPEM      string `json:"key_pem,omitempty"`
 }
 
@@ -118,19 +119,29 @@ func (h *SettingsHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 		writeAuthJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	rec, err := h.tls.Add(tlsengine.AddRequest{
-		Domain: domain, Provider: body.Provider, EABKID: body.EABKID, EABHMAC: body.EABHMAC,
-		CertPEM: body.CertPEM, KeyPEM: body.KeyPEM,
-	})
-	if err != nil {
-		writeAuthJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		return
+	// Only the lock changes when the domain is already set and no provider is sent.
+	// Re-adding it would issue a new certificate for nothing.
+	var rec *db.TLSDomain
+	if body.Provider == "" && domain == h.PanelDomain() {
+		rec, _ = h.tls.Get(domain)
+		if rec == nil {
+			rec = &db.TLSDomain{Domain: domain, Status: tlsengine.StatusPending}
+		}
+	} else {
+		rec, err = h.tls.Add(tlsengine.AddRequest{
+			Domain: domain, Provider: body.Provider, EABKID: body.EABKID, EABHMAC: body.EABHMAC,
+			CertPEM: body.CertPEM, KeyPEM: body.KeyPEM, CFToken: body.CFToken,
+		})
+		if err != nil {
+			writeAuthJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		if err := h.store.Set(panelDomainKey, domain); err != nil {
+			writeAuthJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		h.domain.Store(domain)
 	}
-	if err := h.store.Set(panelDomainKey, domain); err != nil {
-		writeAuthJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
-	}
-	h.domain.Store(domain)
 
 	// Locking is allowed only once the panel's certificate is live. Otherwise the operator
 	// could lock themselves out of the IP address before HTTPS works.
