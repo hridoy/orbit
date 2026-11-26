@@ -43,12 +43,19 @@
       </template>
 
       <template v-if="form.provider === 'cloudflare_origin'">
-        <label>Origin certificate (PEM)
+        <label>Cloudflare API token
+          <input v-model="form.cf_api_token" type="password" autocomplete="off" placeholder="Paste token (not stored in the browser)" />
+        </label>
+        <p class="srv-muted">Create it in Cloudflare under My Profile, API Tokens, with the permission Zone, SSL and Certificates, Edit. Orbit issues the certificate and renews it itself.</p>
+        <details>
+          <summary class="srv-muted">Or paste the origin certificate yourself</summary>
+          <label>Origin certificate (PEM)
           <textarea v-model="form.cert_pem" rows="5" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
         </label>
         <label>Private key (PEM)
           <textarea v-model="form.key_pem" rows="5" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
         </label>
+        </details>
       </template>
 
       <p class="srv-muted">Once saved, this domain serves the dashboard over HTTPS. Its DNS record must point at this server.</p>
@@ -80,7 +87,7 @@ const checking = ref(false)
 const error = ref('')
 const notice = ref('')
 const detection = ref(null)
-const form = ref({ panel_domain: '', provider: 'letsencrypt', eab_kid: '', eab_hmac: '', cert_pem: '', key_pem: '' })
+const form = ref({ panel_domain: '', provider: 'letsencrypt', eab_kid: '', eab_hmac: '', cert_pem: '', key_pem: '', cf_api_token: '' })
 
 const load = async () => {
   try {
@@ -115,7 +122,7 @@ const save = async () => {
   try {
     const body = { ...form.value }
     if (body.provider !== 'zerossl') { body.eab_kid = ''; body.eab_hmac = '' }
-    if (body.provider !== 'cloudflare_origin') { body.cert_pem = ''; body.key_pem = '' }
+    if (body.provider !== 'cloudflare_origin') { body.cert_pem = ''; body.key_pem = ''; body.cf_api_token = '' }
     const res = await api('/api/v1/server/settings', { method: 'PUT', body })
     current.value = res.panel_domain
     notice.value = res.certificate?.status === 'active'
@@ -123,6 +130,7 @@ const save = async () => {
       : `Saved. The certificate for ${res.panel_domain} is being issued; this can take a minute.`
     form.value.cert_pem = ''
     form.value.key_pem = ''
+    form.value.cf_api_token = ''
   } catch (e) {
     error.value = e.message
   } finally {

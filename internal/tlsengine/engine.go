@@ -70,10 +70,11 @@ func NormalizeDomain(d string) (string, error) {
 type AddRequest struct {
 	Domain   string `json:"domain"`
 	Provider string `json:"provider"`
-	EABKID   string `json:"eab_kid,omitempty"`  // ZeroSSL only
-	EABHMAC  string `json:"eab_hmac,omitempty"` // ZeroSSL only
-	CertPEM  string `json:"cert_pem,omitempty"` // Cloudflare origin only
-	KeyPEM   string `json:"key_pem,omitempty"`  // Cloudflare origin only
+	EABKID   string `json:"eab_kid,omitempty"`      // ZeroSSL only
+	EABHMAC  string `json:"eab_hmac,omitempty"`     // ZeroSSL only
+	CertPEM  string `json:"cert_pem,omitempty"`     // Cloudflare origin only
+	KeyPEM   string `json:"key_pem,omitempty"`      // Cloudflare origin only
+	CFToken  string `json:"cf_api_token,omitempty"` // Cloudflare origin only: Orbit issues and renews it
 }
 
 // Engine holds the live certificates and runs issuance and renewal.
@@ -162,6 +163,12 @@ func (e *Engine) Add(req AddRequest) (*db.TLSDomain, error) {
 
 	switch req.Provider {
 	case ProviderCloudflareOrigin:
+		if req.CertPEM == "" && req.KeyPEM == "" {
+			if req.CFToken == "" {
+				return nil, errors.New("enter a Cloudflare API token, or paste the origin certificate and key")
+			}
+			return e.addCloudflareAuto(domain, req.CFToken)
+		}
 		cert, err := tls.X509KeyPair([]byte(req.CertPEM), []byte(req.KeyPEM))
 		if err != nil {
 			return nil, fmt.Errorf("certificate and key do not match: %w", err)
@@ -206,6 +213,54 @@ func (e *Engine) Add(req AddRequest) (*db.TLSDomain, error) {
 		go e.issue(domain, req.Provider, req.EABKID, req.EABHMAC)
 		return rec, nil
 	}
+}
+
+// addCloudflareAuto issues an Origin CA certificate through the Cloudflare API. The token is
+// stored encrypted so renewals can run without the operator.
+func (e *Engine) addCloudflareAuto(domain, token string) (*db.TLSDomain, error) {
+	certPEM, keyPEM, exp, err := issueCloudflareOrigin(context.Background(), token, domain)
+	if err != nil {
+		return nil, err
+	}
+	tc, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return nil, err
+	}
+	keyEnc, err := e.seal(keyPEM)
+	if err != nil {
+		return nil, err
+	}
+	tokEnc, err := e.seal([]byte(token))
+	if err != nil {
+		return nil, err
+	}
+	rec := &db.TLSDomain{
+		Domain: domain, Provider: ProviderCloudflareOrigin, Status: StatusActive,
+		CertPEM: string(certPEM), KeyEnc: keyEnc, EABHMACEnc: tokEnc, ExpiresAt: &exp,
+	}
+	if err := e.store.Upsert(rec); err != nil {
+		return nil, err
+	}
+	e.setCert(domain, &tc)
+	return rec, nil
+}
+
+// renewCloudflareAuto reissues a Cloudflare origin certificate that was created with a token.
+func (e *Engine) renewCloudflareAuto(d *db.TLSDomain) {
+	token, err := e.open(d.EABHMACEnc)
+	if err != nil {
+		return
+	}
+	rec, err := e.addCloudflareAuto(d.Domain, string(token))
+	if err != nil {
+		if cur, gerr := e.store.Get(d.Domain); gerr == nil && cur != nil {
+			cur.LastError = err.Error()
+			_ = e.store.Upsert(cur)
+		}
+		log.Printf("⚠️ tls: renewing %s from Cloudflare failed: %v", d.Domain, err)
+		return
+	}
+	_ = rec
 }
 
 // Remove deletes a domain and its certificate and stops serving it.
@@ -317,10 +372,16 @@ func (e *Engine) RunRenewals(ctx context.Context) {
 				continue
 			}
 			for _, d := range list {
-				if d.Status != StatusActive || d.Provider == ProviderCloudflareOrigin || d.ExpiresAt == nil {
+				if d.Status != StatusActive || d.ExpiresAt == nil {
 					continue
 				}
 				if time.Until(*d.ExpiresAt) > renewBefore {
+					continue
+				}
+				if d.Provider == ProviderCloudflareOrigin {
+					if d.EABHMACEnc != "" { // created with a token, so it can renew itself
+						go e.renewCloudflareAuto(d)
+					}
 					continue
 				}
 				kid, hmacKey := "", ""

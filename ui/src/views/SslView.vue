@@ -51,13 +51,19 @@
       </template>
 
       <template v-if="form.provider === 'cloudflare_origin'">
-        <label>Origin certificate (PEM)
+        <label>Cloudflare API token
+          <input v-model="form.cf_api_token" type="password" autocomplete="off" placeholder="Paste token" />
+        </label>
+        <p class="tls-muted">Create it in Cloudflare under My Profile, API Tokens, with Zone, SSL and Certificates, Edit. Orbit issues and renews the certificate itself.</p>
+        <details>
+          <summary class="tls-muted">Or paste the origin certificate yourself</summary>
+          <label>Origin certificate (PEM)
           <textarea v-model="form.cert_pem" rows="5" required placeholder="-----BEGIN CERTIFICATE-----"></textarea>
         </label>
         <label>Private key (PEM)
-          <textarea v-model="form.key_pem" rows="5" required placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+          <textarea v-model="form.key_pem" rows="5" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
         </label>
-        <p class="tls-muted">Create this in Cloudflare under SSL/TLS, then Origin Server. Cloudflare's proxy trusts it, but browsers that skip Cloudflare will not.</p>
+        </details>
       </template>
 
       <p v-if="form.provider !== 'cloudflare_origin'" class="tls-muted">
@@ -104,7 +110,7 @@ const notice = ref('')
 const showForm = ref(false)
 const detection = ref(null)
 
-const blankForm = () => ({ domain: '', provider: 'letsencrypt', eab_kid: '', eab_hmac: '', cert_pem: '', key_pem: '' })
+const blankForm = () => ({ domain: '', provider: 'letsencrypt', eab_kid: '', eab_hmac: '', cert_pem: '', key_pem: '', cf_api_token: '' })
 const form = ref(blankForm())
 
 const providerLabel = (p) => ({
@@ -150,7 +156,7 @@ const add = async () => {
   try {
     const body = { ...form.value }
     if (body.provider !== 'zerossl') { body.eab_kid = ''; body.eab_hmac = '' }
-    if (body.provider !== 'cloudflare_origin') { body.cert_pem = ''; body.key_pem = '' }
+    if (body.provider !== 'cloudflare_origin') { body.cert_pem = ''; body.key_pem = ''; body.cf_api_token = '' }
     const rec = await api('/api/v1/tls/domains', { method: 'POST', body })
     notice.value = rec.status === 'active'
       ? `${rec.domain} is active.`
