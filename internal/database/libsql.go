@@ -50,13 +50,6 @@ func (le *LibSQLEngine) Provision(
 		return fmt.Errorf("failed to write sqld.conf: %w", err)
 	}
 
-	dbPath := filepath.Join(dataDir, "libsql.db")
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		if err := os.WriteFile(dbPath, []byte(""), 0600); err != nil {
-			return fmt.Errorf("failed to initialize libsql.db: %w", err)
-		}
-	}
-
 	return nil
 }
 

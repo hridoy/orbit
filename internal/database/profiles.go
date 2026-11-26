@@ -237,8 +237,6 @@ systemLog:
   logAppend: true
 storage:
   dbPath: %s
-  journal:
-    enabled: true
   wiredTiger:
     engineConfig:
       cacheSizeGB: %.2f
