@@ -1,0 +1,558 @@
+/* ==========================================================================
+   Cloudflare Kumo Page-Specific Layouts (Home, Workers, D1, R2, Analytics, Zero Trust)
+   ========================================================================== */
+
+/* Sub-Navigation Tabs Bar (e.g. Under Workers & Pages or Zone Overview) */
+.cf-tab-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--color-kumo-line);
+  margin-bottom: 1.75rem;
+  padding-bottom: 1px;
+}
+
+.cf-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.65rem 0.15rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-color-kumo-subtle);
+  cursor: pointer;
+  transition: var(--kumo-transition);
+  position: relative;
+  top: 1px;
+}
+
+.cf-tab-btn:hover {
+  color: var(--text-color-kumo-strong);
+}
+
+.cf-tab-btn.active {
+  color: var(--cf-brand-orange);
+  border-bottom-color: var(--cf-brand-orange);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Account Home: Domain Cards & Quick Setup
+   ========================================================================== */
+
+.domain-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.domain-card {
+  background: var(--color-kumo-base);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-kumo-card);
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: var(--kumo-transition);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 140px;
+}
+
+.domain-card:hover {
+  border-color: rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-kumo-card-hover);
+}
+
+.domain-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.domain-card-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-color-kumo-strong);
+}
+
+.domain-card-stats {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-kumo-hairline);
+  font-size: 0.78rem;
+  color: var(--text-color-kumo-subtle);
+}
+
+/* ==========================================================================
+   Quick Actions Banner
+   ========================================================================== */
+
+.quick-actions-banner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.action-tile {
+  background: var(--color-kumo-base);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-kumo-card);
+  padding: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: var(--kumo-transition);
+}
+
+.action-tile:hover {
+  border-color: var(--cf-brand-orange);
+  background: var(--color-kumo-tint);
+}
+
+.action-tile-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--cf-brand-orange-subtle);
+  color: var(--cf-brand-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.action-tile-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-color-kumo-strong);
+}
+
+.action-tile-desc {
+  font-size: 0.76rem;
+  color: var(--text-color-kumo-subtle);
+  margin-top: 0.15rem;
+}
+
+/* ==========================================================================
+   Zero Trust Policy Cards
+   ========================================================================== */
+
+.zt-policy-card {
+  border: 1px solid var(--color-kumo-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-kumo-base);
+  box-shadow: var(--shadow-kumo-card);
+  padding: 1.15rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: var(--kumo-transition);
+}
+
+.zt-policy-card:hover {
+  border-color: rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-kumo-card-hover);
+}
+
+/* ==========================================================================
+   SQL Query Console (D1 Tab)
+   ========================================================================== */
+
+.d1-sql-console {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  color: #38bdf8;
+  margin-top: 1.5rem;
+}
+
+.d1-sql-console-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.d1-sql-editor {
+  width: 100%;
+  height: 90px;
+  background: #090d16;
+  border: 1px solid #1e293b;
+  border-radius: var(--radius-sm);
+  color: #f8fafc;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  padding: 0.75rem;
+  resize: vertical;
+  outline: none;
+}
+
+.d1-sql-editor:focus {
+  border-color: #38bdf8;
+}
+
+
+/* ==========================================================================
+   DNS Management & Proxied Cloud Status Toggle
+   ========================================================================== */
+
+.dns-status-cloud {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: var(--kumo-transition);
+}
+
+.dns-status-cloud.proxied {
+  background: rgba(246, 130, 31, 0.12);
+  color: #d9680c;
+  border: 1px solid rgba(246, 130, 31, 0.3);
+}
+
+.dns-status-cloud.proxied:hover {
+  background: rgba(246, 130, 31, 0.2);
+}
+
+.dns-status-cloud.dns-only {
+  background: var(--color-kumo-hairline);
+  color: var(--text-color-kumo-subtle);
+  border: 1px solid var(--color-kumo-line);
+}
+
+.dns-type-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--color-kumo-hairline);
+  color: var(--text-color-kumo-strong);
+  border: 1px solid var(--color-kumo-line);
+}
+
+/* ==========================================================================
+   Billing & Subscriptions Plan Cards
+   ========================================================================== */
+
+.plan-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.plan-card {
+  background: var(--color-kumo-base);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-kumo-card);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  transition: var(--kumo-transition);
+}
+
+.plan-card:hover {
+  box-shadow: var(--shadow-kumo-card-hover);
+  border-color: rgba(0, 0, 0, 0.16);
+}
+
+.plan-card.current {
+  border-color: var(--cf-brand-orange);
+  box-shadow: 0 0 0 2px var(--cf-brand-orange-subtle);
+}
+
+.plan-badge-current {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: var(--cf-brand-orange);
+  color: #ffffff;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+}
+
+.plan-price {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--text-color-kumo-strong);
+  margin: 0.75rem 0 0.5rem 0;
+}
+
+.plan-price span {
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--text-color-kumo-subtle);
+}
+
+.plan-features-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.25rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.84rem;
+  color: var(--text-color-kumo-default);
+}
+
+.plan-features-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plan-features-list li svg {
+  color: #059669;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   SSL / TLS Encryption Mode Selector
+   ========================================================================== */
+
+.ssl-modes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.ssl-mode-card {
+  background: var(--color-kumo-base);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: var(--kumo-transition);
+  position: relative;
+}
+
+.ssl-mode-card:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+.ssl-mode-card.active {
+  border-color: var(--cf-brand-orange);
+  background: rgba(246, 130, 31, 0.03);
+  box-shadow: 0 0 0 1px var(--cf-brand-orange);
+}
+
+.ssl-mode-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-color-kumo-strong);
+  margin-bottom: 0.5rem;
+}
+
+.ssl-mode-desc {
+  font-size: 0.8rem;
+  color: var(--text-color-kumo-subtle);
+  line-height: 1.45;
+}
+
+/* ==========================================================================
+   Team Members Avatar Initials
+   ========================================================================== */
+
+.user-avatar-initials {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--cf-brand-orange);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   UI Kit & Component Showcase
+   ========================================================================== */
+
+.ui-kit-section {
+  background: var(--color-kumo-base);
+  border: 1px solid var(--color-kumo-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-kumo-card);
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+}
+
+.ui-kit-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-color-kumo-strong);
+  margin-bottom: 0.35rem;
+}
+
+.ui-kit-desc {
+  font-size: 0.84rem;
+  color: var(--text-color-kumo-subtle);
+  margin-bottom: 1.5rem;
+}
+
+.ui-kit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.ui-alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  font-size: 0.86rem;
+  border: 1px solid transparent;
+}
+
+.ui-alert-banner.info {
+  background: rgba(0, 81, 195, 0.08);
+  border-color: rgba(0, 81, 195, 0.2);
+  color: #003681;
+}
+
+.ui-alert-banner.success {
+  background: rgba(5, 150, 105, 0.08);
+  border-color: rgba(5, 150, 105, 0.25);
+  color: #065f46;
+}
+
+.ui-alert-banner.warning {
+  background: rgba(246, 130, 31, 0.08);
+  border-color: rgba(246, 130, 31, 0.25);
+  color: #9a3412;
+}
+
+.ui-alert-banner.danger {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.25);
+  color: #991b1b;
+}
+
+/* ==========================================================================
+   Split-Screen Authentication Layouts (Login, Register, 2FA, Forgot Password)
+   ========================================================================== */
+
+.auth-split-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--color-kumo-canvas);
+}
+
+.auth-hero-pane {
+  flex: 1;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  padding: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-hero-pane::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  left: -20%;
+  width: 140%;
+  height: 140%;
+  background: radial-gradient(circle at 30% 30%, rgba(246, 130, 31, 0.15) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.auth-card-pane {
+  width: 480px;
+  background: var(--color-kumo-base);
+  padding: 3.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-left: 1px solid var(--color-kumo-line);
+}
+
+@media (max-width: 900px) {
+  .auth-hero-pane {
+    display: none;
+  }
+  .auth-card-pane {
+    width: 100%;
+    padding: 2rem 1.5rem;
+    border-left: none;
+  }
+}
+
+.auth-card-pane h1 {
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--text-color-kumo-strong);
+  margin-bottom: 0.5rem;
+}
+
+.auth-card-pane p {
+  font-size: 0.88rem;
+  color: var(--text-color-kumo-subtle);
+  margin-bottom: 2rem;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 1.5rem 0;
+  color: var(--text-color-kumo-subtle);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--color-kumo-line);
+}
+
+.auth-divider span {
+  padding: 0 0.75rem;
+}

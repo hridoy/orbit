@@ -179,3 +179,11 @@ CREATE TABLE IF NOT EXISTS app_sources (
     checked_at          DATETIME,
     FOREIGN KEY(app_id) REFERENCES apps(app_id) ON DELETE CASCADE
 );
+
+-- Dashboard login. One row (id = 1) holds the operator account created on first run.
+CREATE TABLE IF NOT EXISTS admin_users (
+    id                  INTEGER PRIMARY KEY CHECK (id = 1),
+    username            TEXT NOT NULL,
+    password_hash       TEXT NOT NULL,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

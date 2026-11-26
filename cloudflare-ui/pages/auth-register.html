@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="orange">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudflare — Create an account</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/cloudflare-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/kumo-tokens.css">
+  <link rel="stylesheet" href="../styles/kumo-base.css">
+  <link rel="stylesheet" href="../styles/kumo-components.css">
+  <link rel="stylesheet" href="../styles/kumo-pages.css">
+</head>
+<body>
+  <div class="auth-split-wrapper">
+    <!-- Left Hero Pane -->
+    <div class="auth-hero-pane">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <img src="../assets/cloudflare-logo.svg" alt="Cloudflare" style="height: 32px;" />
+        <span style="font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em;">Cloudflare</span>
+      </div>
+
+      <div>
+        <h2 style="font-size: 2.25rem; font-weight: 700; line-height: 1.2; margin-bottom: 1rem;">
+          Get started with Cloudflare today.
+        </h2>
+        <p style="font-size: 1rem; color: #94a3b8; max-width: 480px; line-height: 1.5;">
+          Join millions of developers and enterprise organizations accelerating and securing their internet properties.
+        </p>
+      </div>
+
+      <div style="font-size: 0.8rem; color: #64748b;">
+        © 2026 Cloudflare, Inc. All rights reserved. • Privacy Policy • Terms of Use
+      </div>
+    </div>
+
+    <!-- Right Register Card Pane -->
+    <div class="auth-card-pane">
+      <h1>Sign up</h1>
+      <p>Create your free Cloudflare developer account in seconds.</p>
+
+      <form onsubmit="event.preventDefault(); window.location.href='auth-2fa.html';">
+        <div class="cf-form-group">
+          <label>Full name</label>
+          <input type="text" class="cf-input" placeholder="Alex Morgan" required />
+        </div>
+
+        <div class="cf-form-group">
+          <label>Email address</label>
+          <input type="email" class="cf-input" placeholder="name@company.com" required />
+        </div>
+
+        <div class="cf-form-group">
+          <label>Password</label>
+          <input type="password" class="cf-input" placeholder="Minimum 8 characters" required />
+          <div style="display: flex; gap: 4px; margin-top: 6px;">
+            <div style="height: 4px; flex: 1; background: #10b981; border-radius: 2px;"></div>
+            <div style="height: 4px; flex: 1; background: #10b981; border-radius: 2px;"></div>
+            <div style="height: 4px; flex: 1; background: #10b981; border-radius: 2px;"></div>
+            <div style="height: 4px; flex: 1; background: var(--color-kumo-line); border-radius: 2px;"></div>
+          </div>
+          <span style="font-size: 0.74rem; color: #10b981; margin-top: 4px; display: block;">Strong password</span>
+        </div>
+
+        <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 1.5rem;">
+          <input type="checkbox" id="terms-agree" required style="margin-top: 3px;" />
+          <label for="terms-agree" style="font-size: 0.8rem; margin: 0; cursor: pointer; color: var(--text-color-kumo-subtle);">
+            I agree to Cloudflare's Terms of Service and Privacy Policy.
+          </label>
+        </div>
+
+        <button type="submit" class="btn-cf btn-cf-primary" style="width: 100%; justify-content: center; height: 42px;">
+          Create Account
+        </button>
+      </form>
+
+      <div style="text-align: center; margin-top: 1.5rem; font-size: 0.84rem; color: var(--text-color-kumo-subtle);">
+        Already have an account? <a href="auth-login.html" style="color: var(--cf-brand-orange); font-weight: 500; text-decoration: none;">Log in</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

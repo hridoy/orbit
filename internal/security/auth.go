@@ -27,7 +27,8 @@ func (a *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 		p := r.URL.Path
 		if p == "/healthz" || p == "/" || p == "/index.html" || p == "/icon.svg" ||
 			p == "/manifest.webmanifest" || p == "/sw.js" ||
-			strings.HasPrefix(p, "/assets/") || strings.HasPrefix(p, "/s3/") {
+			strings.HasPrefix(p, "/assets/") || strings.HasPrefix(p, "/s3/") ||
+			p == "/api/v1/auth/status" || p == "/api/v1/auth/setup" || p == "/api/v1/auth/login" {
 			next.ServeHTTP(w, r)
 			return
 		}

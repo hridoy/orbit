@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="orange">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudflare Dashboard — Commercial Admin Template (Envato ThemeForest Ready)</title>
+  <link rel="icon" type="image/svg+xml" href="assets/cloudflare-logo.svg">
+
+  <!-- Inter Variable & JetBrains Mono Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Cloudflare Kumo Stylesheet Suite -->
+  <link rel="stylesheet" href="styles/kumo-tokens.css">
+  <link rel="stylesheet" href="styles/kumo-base.css">
+  <link rel="stylesheet" href="styles/kumo-sidebar.css">
+  <link rel="stylesheet" href="styles/kumo-header.css">
+  <link rel="stylesheet" href="styles/kumo-cards.css">
+  <link rel="stylesheet" href="styles/kumo-tables.css">
+  <link rel="stylesheet" href="styles/kumo-components.css">
+  <link rel="stylesheet" href="styles/kumo-modals.css">
+  <link rel="stylesheet" href="styles/kumo-pages.css">
+  <link rel="stylesheet" href="styles/kumo-customizer.css">
+  <link rel="stylesheet" href="styles/kumo-responsive.css">
+</head>
+<body>
+  <!-- Mobile Sidebar Backdrop -->
+  <div class="mobile-sidebar-backdrop" id="cf-mobile-backdrop" onclick="toggleMobileSidebar(false)"></div>
+
+  <!-- App Shell -->
+  <div class="kumo-shell">
+    <!-- Sidebar Container -->
+    <aside class="kumo-sidebar" id="cf-sidebar-container"></aside>
+
+    <!-- Main Content Area -->
+    <div class="kumo-main">
+      <!-- Top Header Bar -->
+      <header class="kumo-header" id="cf-header-container"></header>
+
+      <!-- Dynamic Page Canvas -->
+      <main class="kumo-content" id="cf-app-viewport"></main>
+    </div>
+  </div>
+
+  <!-- Dynamic Modals Container -->
+  <div id="cf-modal-container"></div>
+
+  <!-- Floating Live Theme Customizer Trigger Button -->
+  <button class="cf-customizer-trigger" id="cf-customizer-btn" onclick="toggleCustomizer(true)" title="Customize Theme & Layout">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  </button>
+
+  <!-- Live Customizer Backdrop & Drawer Panel -->
+  <div class="cf-customizer-backdrop" id="cf-customizer-backdrop" onclick="toggleCustomizer(false)"></div>
+  <aside class="cf-customizer-drawer" id="cf-customizer-drawer">
+    <div class="cf-customizer-head">
+      <div>
+        <h3 style="margin: 0; font-size: 1.05rem;">Theme Customizer</h3>
+        <span style="font-size: 0.75rem; color: var(--text-color-kumo-subtle);">Envato Commercial Options</span>
+      </div>
+      <button class="btn-cf btn-cf-secondary btn-cf-sm" onclick="toggleCustomizer(false)" style="padding: 0.25rem 0.5rem;">✕</button>
+    </div>
+
+    <div class="cf-customizer-body">
+      <!-- Dark / Light Mode -->
+      <div>
+        <div class="cf-customizer-section-title">Color Scheme</div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn-cf btn-cf-secondary" id="theme-light-btn" onclick="setThemeMode('light')" style="flex: 1; justify-content: center;">☀️ Light</button>
+          <button class="btn-cf btn-cf-secondary" id="theme-dark-btn" onclick="setThemeMode('dark')" style="flex: 1; justify-content: center;">🌙 Dark</button>
+        </div>
+      </div>
+
+      <!-- Accent Color Selection -->
+      <div>
+        <div class="cf-customizer-section-title">Brand Accent Color</div>
+        <div class="color-swatches-grid">
+          <button class="color-swatch-btn swatch-orange active" data-color="orange" onclick="setAccentColor('orange')" title="Cloudflare Orange">✓</button>
+          <button class="color-swatch-btn swatch-blue" data-color="blue" onclick="setAccentColor('blue')" title="Deep Blue"></button>
+          <button class="color-swatch-btn swatch-emerald" data-color="emerald" onclick="setAccentColor('emerald')" title="Emerald Green"></button>
+          <button class="color-swatch-btn swatch-purple" data-color="purple" onclick="setAccentColor('purple')" title="Royal Purple"></button>
+          <button class="color-swatch-btn swatch-red" data-color="red" onclick="setAccentColor('red')" title="Ruby Red"></button>
+        </div>
+      </div>
+
+      <!-- Sidebar Layout -->
+      <div>
+        <div class="cf-customizer-section-title">Sidebar Style</div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn-cf btn-cf-secondary" id="sidebar-full-btn" onclick="setSidebarMode('full')" style="flex: 1; justify-content: center;">Expanded (256px)</button>
+          <button class="btn-cf btn-cf-secondary" id="sidebar-mini-btn" onclick="setSidebarMode('mini')" style="flex: 1; justify-content: center;">Mini (68px)</button>
+        </div>
+      </div>
+
+      <!-- Quick Template Links -->
+      <div>
+        <div class="cf-customizer-section-title">Standalone Auth & Error Pages</div>
+        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+          <a href="pages/auth-login.html" class="kumo-nav-sub-item" target="_blank"><span>🔐 Sign In / Login</span> ↗</a>
+          <a href="pages/auth-register.html" class="kumo-nav-sub-item" target="_blank"><span>📝 Sign Up / Register</span> ↗</a>
+          <a href="pages/auth-2fa.html" class="kumo-nav-sub-item" target="_blank"><span>🛡️ Two-Factor Auth (2FA)</span> ↗</a>
+          <a href="pages/error-404.html" class="kumo-nav-sub-item" target="_blank"><span>⚠️ 404 Not Found Screen</span> ↗</a>
+          <a href="pages/error-500.html" class="kumo-nav-sub-item" target="_blank"><span>💥 500 Server Error Screen</span> ↗</a>
+          <a href="pages/maintenance.html" class="kumo-nav-sub-item" target="_blank"><span>🚧 Maintenance Mode</span> ↗</a>
+          <a href="documentation.html" class="kumo-nav-sub-item" target="_blank"><span>📖 Buyer Documentation</span> ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="cf-customizer-foot">
+      <button class="btn-cf btn-cf-secondary" onclick="resetCustomizer()" style="flex: 1; justify-content: center;">Reset Defaults</button>
+      <button class="btn-cf btn-cf-primary" onclick="toggleCustomizer(false)" style="flex: 1; justify-content: center;">Done</button>
+    </div>
+  </aside>
+
+  <!-- ⌘K Quick Search Spotlight Palette -->
+  <div class="cf-command-backdrop" id="cf-quick-search-backdrop" style="display: none;" onclick="if(event.target === this) closeQuickSearch()">
+    <div class="cf-command-palette">
+      <div class="cf-command-search-head">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input 
+          id="cf-quick-search-input"
+          type="text"
+          placeholder="Quick search workloads, databases, buckets, zones... (Type to filter)"
+          oninput="handleSearchInput()"
+        />
+        <button class="btn-cf btn-cf-secondary btn-cf-sm" onclick="closeQuickSearch()">Esc</button>
+      </div>
+      <div class="cf-command-results" id="cf-quick-search-results"></div>
+      <div class="cf-command-foot">
+        <span>Press <kbd>↑</kbd> <kbd>↓</kbd> to navigate, <kbd>Enter</kbd> to select</span>
+        <kbd>ESC to close</kbd>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="scripts/mock-data.js"></script>
+  <script src="scripts/icons.js"></script>
+  <script src="scripts/app.js"></script>
+</body>
+</html>

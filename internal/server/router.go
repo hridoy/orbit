@@ -35,6 +35,7 @@ type Server struct {
 	computeHdr   *compute.ComputeHandler
 	gitHdr       *compute.GitHandler
 	platformHdr  *update.Handler
+	authHdr      *AuthHandler
 	databaseHdr  *database.DatabaseHandler
 	s3Engine     *s3.S3Engine
 	meter        *proxy.BandwidthMeter
@@ -54,6 +55,7 @@ func NewServer(
 	dbStore := db.NewDatabaseStore(dbConn)
 	secStore := db.NewSecretStore(dbConn, vault)
 	storageStore := db.NewStorageStore(dbConn)
+	adminStore := db.NewAdminStore(dbConn)
 
 	jailInst := jail.NewJail(cfg)
 	jailHandler := jail.NewHandler(jailInst)
@@ -91,6 +93,7 @@ func NewServer(
 		computeHdr:   computeHandler,
 		gitHdr:       gitHandler,
 		platformHdr:  update.NewHandler(cfg.DataDir, buildinfo.Version),
+		authHdr:      NewAuthHandler(adminStore, tokenMgr),
 		databaseHdr:  databaseHandler,
 		s3Engine:     s3Engine,
 		meter:        meter,
@@ -132,6 +135,9 @@ func (s *Server) registerRoutes() {
 
 	// Register GitHub install and update routes
 	s.gitHdr.RegisterRoutes(s.mux)
+
+	// Dashboard setup and password login
+	s.authHdr.RegisterRoutes(s.mux)
 
 	// Register agent self-update routes
 	s.platformHdr.RegisterRoutes(s.mux)

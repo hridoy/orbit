@@ -7,25 +7,25 @@ import (
 )
 
 type App struct {
-	AppID             string    `json:"app_id"`
-	Name              string    `json:"name"`
-	Domain            *string   `json:"domain,omitempty"`
-	NodeID            string    `json:"node_id"`
-	LinuxUser         string    `json:"linux_user"`
-	ActivePort        int       `json:"active_port"`
-	IdlePort          int       `json:"idle_port"`
-	BinaryEntrypoint  string    `json:"binary_entrypoint"`
-	ExecArgs          string    `json:"exec_args"`
-	RAMLimitMB        int       `json:"ram_limit_mb"`
-	CPUQuotaPct       int       `json:"cpu_quota_pct"`
-	PIDsLimit         int       `json:"pids_limit"`
-	HealthCheckPath   string    `json:"health_check_path"`
-	HealthTimeoutSec  int       `json:"health_timeout_sec"`
-	AutoRestart       bool      `json:"auto_restart"`
-	Status            string    `json:"status"`
-	CurrentVersion    *string   `json:"current_version,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	AppID            string    `json:"app_id"`
+	Name             string    `json:"name"`
+	Domain           *string   `json:"domain,omitempty"`
+	NodeID           string    `json:"node_id"`
+	LinuxUser        string    `json:"linux_user"`
+	ActivePort       int       `json:"active_port"`
+	IdlePort         int       `json:"idle_port"`
+	BinaryEntrypoint string    `json:"binary_entrypoint"`
+	ExecArgs         string    `json:"exec_args"`
+	RAMLimitMB       int       `json:"ram_limit_mb"`
+	CPUQuotaPct      int       `json:"cpu_quota_pct"`
+	PIDsLimit        int       `json:"pids_limit"`
+	HealthCheckPath  string    `json:"health_check_path"`
+	HealthTimeoutSec int       `json:"health_timeout_sec"`
+	AutoRestart      bool      `json:"auto_restart"`
+	Status           string    `json:"status"`
+	CurrentVersion   *string   `json:"current_version,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type AppDeployment struct {

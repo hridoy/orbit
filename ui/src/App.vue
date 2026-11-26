@@ -1,5 +1,6 @@
 <template>
   <div class="orbit-shell">
+    <AuthGate v-if="authChecked && !signedIn" :setup-required="setupRequired" @authed="onAuthed" />
     <!-- CLOUDFLARE STYLE SIDEBAR -->
     <aside class="cf-sidebar">
       <div class="sidebar-header">
@@ -1298,6 +1299,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import AuthGate from './AuthGate.vue'
 
 const openGroups = ref({
   recents: true,
@@ -1625,12 +1627,51 @@ if (urlParams.get('token')) {
   localStorage.setItem('orbit_token', authToken.value)
 }
 
+const signedIn = ref(false)
+const authChecked = ref(false)
+const setupRequired = ref(false)
+let dashboardStarted = false
+
+const signOutLocally = () => {
+  signedIn.value = false
+  authToken.value = ''
+  try { localStorage.removeItem('orbit_token') } catch (e) {}
+}
+
 const apiFetch = async (url, options = {}) => {
   options.headers = options.headers || {}
   if (authToken.value) {
     options.headers['Authorization'] = 'Bearer ' + authToken.value
   }
-  return fetch(url, options)
+  const res = await fetch(url, options)
+  if (res.status === 401 && signedIn.value) {
+    signOutLocally()
+  }
+  return res
+}
+
+// Decide whether to show the login screen: a saved token that still works skips it.
+const checkAuth = async () => {
+  try {
+    if (authToken.value) {
+      const res = await fetch('/api/v1/node', { headers: { Authorization: 'Bearer ' + authToken.value } })
+      if (res.ok) return true
+    }
+    const res = await fetch('/api/v1/auth/status')
+    if (res.ok) {
+      const body = await res.json()
+      setupRequired.value = !!body.setup_required
+    }
+  } catch (e) {}
+  signOutLocally()
+  return false
+}
+
+const onAuthed = (token) => {
+  authToken.value = token
+  try { localStorage.setItem('orbit_token', token) } catch (e) {}
+  signedIn.value = true
+  startDashboard()
 }
 
 const fetchState = async () => {
@@ -1778,6 +1819,19 @@ onMounted(() => {
     isDarkMode.value = false
     document.documentElement.removeAttribute('data-theme')
   }
+  window.addEventListener('keydown', handleKeydown)
+  checkAuth().then((ok) => {
+    authChecked.value = true
+    if (ok) {
+      signedIn.value = true
+      startDashboard()
+    }
+  })
+})
+
+const startDashboard = () => {
+  if (dashboardStarted) return
+  dashboardStarted = true
   fetchState()
   startTelemetrySSE()
   setInterval(fetchState, 5000)
@@ -1785,8 +1839,7 @@ onMounted(() => {
   fetchPlatform()
   setInterval(fetchUpdates, 5 * 60 * 1000)
   setInterval(fetchPlatform, 30 * 60 * 1000)
-  window.addEventListener('keydown', handleKeydown)
-})
+}
 
 onUnmounted(() => {
   if (telemetryEventSource) telemetryEventSource.close()

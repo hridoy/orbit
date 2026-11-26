@@ -9,14 +9,14 @@ import (
 )
 
 type SecretRecord struct {
-	SecretID        string    `json:"secret_id"`
-	ScopeType       string    `json:"scope_type"` // 'global', 'app', 'database'
-	ScopeID         string    `json:"scope_id"`
-	SecretKey       string    `json:"secret_key"`
-	CiphertextBase64 string   `json:"-"`
-	NonceBase64     string    `json:"-"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	SecretID         string    `json:"secret_id"`
+	ScopeType        string    `json:"scope_type"` // 'global', 'app', 'database'
+	ScopeID          string    `json:"scope_id"`
+	SecretKey        string    `json:"secret_key"`
+	CiphertextBase64 string    `json:"-"`
+	NonceBase64      string    `json:"-"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type SecretStore struct {

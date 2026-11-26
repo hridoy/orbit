@@ -9,7 +9,7 @@ import (
 type DatabaseInstance struct {
 	DBID              string    `json:"db_id"`
 	Name              string    `json:"name"`
-	Engine            string    `json:"engine"`      // 'postgres', 'mongodb'
+	Engine            string    `json:"engine"` // 'postgres', 'mongodb'
 	Version           string    `json:"version"`
 	NodeID            string    `json:"node_id"`
 	Port              int       `json:"port"`
@@ -118,4 +118,3 @@ func (s *DatabaseStore) DeleteDatabase(dbID string) error {
 	_, err := s.db.Exec(query, dbID)
 	return err
 }
-
