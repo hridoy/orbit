@@ -1,8 +1,10 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"orbit/internal/s3"
 	"orbit/internal/security"
 	"orbit/internal/telemetry"
+	"orbit/internal/tlsengine"
 	"orbit/internal/update"
 	"orbit/ui"
 )
@@ -36,6 +39,8 @@ type Server struct {
 	gitHdr       *compute.GitHandler
 	platformHdr  *update.Handler
 	authHdr      *AuthHandler
+	tlsHdr       *TLSHandler
+	tlsEngine    *tlsengine.Engine
 	databaseHdr  *database.DatabaseHandler
 	s3Engine     *s3.S3Engine
 	meter        *proxy.BandwidthMeter
@@ -56,6 +61,10 @@ func NewServer(
 	secStore := db.NewSecretStore(dbConn, vault)
 	storageStore := db.NewStorageStore(dbConn)
 	adminStore := db.NewAdminStore(dbConn)
+	tlsEngine := tlsengine.New(db.NewTLSDomainStore(dbConn), vault)
+	if err := tlsEngine.Load(); err != nil {
+		log.Printf("⚠️ tls: loading certificates: %v", err)
+	}
 
 	jailInst := jail.NewJail(cfg)
 	jailHandler := jail.NewHandler(jailInst)
@@ -94,6 +103,8 @@ func NewServer(
 		gitHdr:       gitHandler,
 		platformHdr:  update.NewHandler(cfg.DataDir, buildinfo.Version),
 		authHdr:      NewAuthHandler(adminStore, tokenMgr),
+		tlsHdr:       NewTLSHandler(tlsEngine),
+		tlsEngine:    tlsEngine,
 		databaseHdr:  databaseHandler,
 		s3Engine:     s3Engine,
 		meter:        meter,
@@ -139,6 +150,9 @@ func (s *Server) registerRoutes() {
 	// Dashboard setup and password login
 	s.authHdr.RegisterRoutes(s.mux)
 
+	// Domains and HTTPS certificates
+	s.tlsHdr.RegisterRoutes(s.mux)
+
 	// Register agent self-update routes
 	s.platformHdr.RegisterRoutes(s.mux)
 
@@ -183,8 +197,9 @@ func (s *Server) ListenAndServe() error {
 	// Bring back apps that were live before the last restart, without blocking the listener.
 	go s.computeHdr.RestoreApps()
 
-	// Serve apps publicly on port 80 (HTTP; HTTPS comes later).
+	// Serve apps publicly on port 80 (ACME challenges and redirects) and port 443 (HTTPS).
 	go s.startPublicProxy()
+	go s.tlsEngine.RunRenewals(context.Background())
 
 	s.httpServer = &http.Server{
 		Addr:              s.cfg.ListenAddr,

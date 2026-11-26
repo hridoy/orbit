@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -26,9 +27,34 @@ func (s *Server) startPublicProxy() {
 		}
 	}()
 
+	// ACME HTTP-01 challenges are answered here before any app routing.
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.tlsEngine.ServeChallenge(w, r) {
+			return
+		}
+		rp.ServeHTTP(w, r)
+	})
+
+	// HTTPS on 443: certificates are picked by SNI from the TLS domain engine.
+	go func() {
+		tlsSrv := &http.Server{
+			Addr:              ":443",
+			Handler:           handler,
+			ReadHeaderTimeout: 10 * time.Second,
+			TLSConfig: &tls.Config{
+				MinVersion:     tls.VersionTLS12,
+				GetCertificate: s.tlsEngine.GetCertificate,
+			},
+		}
+		log.Printf("🔒 public HTTPS listening on :443")
+		if err := tlsSrv.ListenAndServeTLS("", ""); err != nil {
+			log.Printf("⚠️ public HTTPS not started: %v", err)
+		}
+	}()
+
 	srv := &http.Server{
 		Addr:              ":80",
-		Handler:           rp,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	log.Printf("🌐 public proxy listening on :80")

@@ -187,3 +187,18 @@ CREATE TABLE IF NOT EXISTS admin_users (
     password_hash       TEXT NOT NULL,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- One row per public domain. Private keys and EAB secrets are stored encrypted by internal/tlsengine.
+CREATE TABLE IF NOT EXISTS tls_domains (
+    domain              TEXT PRIMARY KEY,
+    provider            TEXT NOT NULL,
+    status              TEXT NOT NULL DEFAULT 'pending',
+    last_error          TEXT NOT NULL DEFAULT '',
+    cert_pem            TEXT NOT NULL DEFAULT '',
+    key_enc             TEXT NOT NULL DEFAULT '',
+    eab_kid             TEXT NOT NULL DEFAULT '',
+    eab_hmac_enc        TEXT NOT NULL DEFAULT '',
+    expires_at          DATETIME,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
