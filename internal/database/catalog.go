@@ -26,6 +26,8 @@ var Catalog = []CatalogEntry{
 	{Engine: "postgres", Version: "15", Method: MethodApt, Pkg: "postgresql-15", Bin: "postgres"},
 	{Engine: "postgres", Version: "16", Method: MethodApt, Pkg: "postgresql-16", Bin: "postgres"},
 	{Engine: "postgres", Version: "17", Method: MethodApt, Pkg: "postgresql-17", Bin: "postgres"},
+	{Engine: "postgres", Version: "18", Method: MethodApt, Pkg: "postgresql-18", Bin: "postgres"},
+	{Engine: "postgres", Version: "19", Method: MethodApt, Pkg: "postgresql-19", Bin: "postgres"},
 
 	{Engine: "mysql", Version: "8.0", Method: MethodTarball, Bin: "mysqld",
 		URL: "https://cdn.mysql.com/archives/mysql-8.0/mysql-8.0.40-linux-glibc2.28-x86_64.tar.xz"},
