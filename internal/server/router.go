@@ -40,6 +40,7 @@ type Server struct {
 	platformHdr  *update.Handler
 	authHdr      *AuthHandler
 	tlsHdr       *TLSHandler
+	settings     *SettingsHandler
 	tlsEngine    *tlsengine.Engine
 	databaseHdr  *database.DatabaseHandler
 	s3Engine     *s3.S3Engine
@@ -62,6 +63,10 @@ func NewServer(
 	storageStore := db.NewStorageStore(dbConn)
 	adminStore := db.NewAdminStore(dbConn)
 	tlsEngine := tlsengine.New(db.NewTLSDomainStore(dbConn), vault)
+	settingsHandler, err := NewSettingsHandler(db.NewServerSettingsStore(dbConn), tlsEngine)
+	if err != nil {
+		log.Fatalf("settings: %v", err)
+	}
 	if err := tlsEngine.Load(); err != nil {
 		log.Printf("⚠️ tls: loading certificates: %v", err)
 	}
@@ -104,6 +109,7 @@ func NewServer(
 		platformHdr:  update.NewHandler(cfg.DataDir, buildinfo.Version),
 		authHdr:      NewAuthHandler(adminStore, tokenMgr),
 		tlsHdr:       NewTLSHandler(tlsEngine),
+		settings:     settingsHandler,
 		tlsEngine:    tlsEngine,
 		databaseHdr:  databaseHandler,
 		s3Engine:     s3Engine,
@@ -152,6 +158,7 @@ func (s *Server) registerRoutes() {
 
 	// Domains and HTTPS certificates
 	s.tlsHdr.RegisterRoutes(s.mux)
+	s.settings.RegisterRoutes(s.mux)
 
 	// Register agent self-update routes
 	s.platformHdr.RegisterRoutes(s.mux)

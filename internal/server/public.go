@@ -28,8 +28,18 @@ func (s *Server) startPublicProxy() {
 	}()
 
 	// ACME HTTP-01 challenges are answered here before any app routing.
+	dash := dashboardProxy()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.tlsEngine.ServeChallenge(w, r) {
+			return
+		}
+		// The panel domain reaches the dashboard. Plain HTTP moves to HTTPS once its certificate exists.
+		if panel := s.settings.PanelDomain(); panel != "" && hostOnly(r.Host) == panel {
+			if r.TLS == nil && s.tlsEngine.HasCertificate(panel) {
+				http.Redirect(w, r, "https://"+panel+r.URL.RequestURI(), http.StatusPermanentRedirect)
+				return
+			}
+			dash.ServeHTTP(w, r)
 			return
 		}
 		rp.ServeHTTP(w, r)
@@ -61,6 +71,11 @@ func (s *Server) startPublicProxy() {
 	if err := srv.ListenAndServe(); err != nil {
 		log.Printf("⚠️ public proxy not started: %v", err)
 	}
+}
+
+// dashboardProxy forwards requests to the dashboard listening on loopback.
+func dashboardProxy() http.Handler {
+	return httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: "127.0.0.1:8787"})
 }
 
 // singleLiveAppFallback forwards to the only app that is live, and 404s otherwise.

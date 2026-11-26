@@ -124,6 +124,14 @@ func (e *Engine) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, e
 	return nil, fmt.Errorf("no certificate for %q", hello.ServerName)
 }
 
+// HasCertificate reports whether a certificate is loaded for the domain.
+func (e *Engine) HasCertificate(domain string) bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	_, ok := e.certs[strings.ToLower(domain)]
+	return ok
+}
+
 // ServeChallenge answers ACME HTTP-01 requests. It returns true when the request was handled.
 func (e *Engine) ServeChallenge(w http.ResponseWriter, r *http.Request) bool {
 	if !strings.HasPrefix(r.URL.Path, challengePathPrefix) {

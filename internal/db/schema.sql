@@ -202,3 +202,10 @@ CREATE TABLE IF NOT EXISTS tls_domains (
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Key/value server settings, such as the panel (dashboard) domain.
+CREATE TABLE IF NOT EXISTS server_settings (
+    key                 TEXT PRIMARY KEY,
+    value               TEXT NOT NULL,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
