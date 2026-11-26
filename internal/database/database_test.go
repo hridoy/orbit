@@ -85,8 +85,8 @@ func TestTuningProfiles(t *testing.T) {
 	}
 
 	mongoConf := GenerateMongoConf(27017, "/tmp/run", "/tmp/data", ProfileMicro)
-	if !strings.Contains(mongoConf, "cacheSizeGB: 0.05") {
-		t.Errorf("mongod conf must limit wiredTiger cache to 0.05")
+	if !strings.Contains(mongoConf, "cacheSizeGB: 0.25") {
+		t.Errorf("mongod conf must use the 0.25 GB minimum wiredTiger cache for micro")
 	}
 }
 
