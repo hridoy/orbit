@@ -22,12 +22,12 @@ func NewAuthMiddleware(tokenMgr *TokenManager) *AuthMiddleware {
 // Wrap guards an http.Handler requiring a valid Bearer token or X-Orbit-Key.
 func (a *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Allow unauthenticated health check, public static UI assets, telemetry, and S3
+		// Allow unauthenticated health check, public static UI assets, and S3
+		// (S3 enforces its own auth). Telemetry and admin APIs require a token.
 		p := r.URL.Path
 		if p == "/healthz" || p == "/" || p == "/index.html" || p == "/icon.svg" ||
 			p == "/manifest.webmanifest" || p == "/sw.js" ||
-			strings.HasPrefix(p, "/assets/") || strings.HasPrefix(p, "/s3/") ||
-			strings.HasPrefix(p, "/api/v1/telemetry/") {
+			strings.HasPrefix(p, "/assets/") || strings.HasPrefix(p, "/s3/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -63,10 +63,18 @@ func extractToken(r *http.Request) string {
 	if xKey := r.Header.Get("X-Orbit-Key"); xKey != "" {
 		return xKey
 	}
-	if queryToken := r.URL.Query().Get("token"); queryToken != "" {
-		return queryToken
+	// EventSource cannot send headers, so SSE streams may take the token from the query.
+	// Restricted to stream endpoints so the token never lands in ordinary request URLs.
+	if isStreamPath(r.URL.Path) {
+		if queryToken := r.URL.Query().Get("token"); queryToken != "" {
+			return queryToken
+		}
 	}
 	return ""
+}
+
+func isStreamPath(p string) bool {
+	return strings.HasSuffix(p, "/stream") || strings.HasSuffix(p, "/logs/stream")
 }
 
 func GetClaims(ctx context.Context) *TokenClaims {

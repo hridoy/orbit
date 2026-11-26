@@ -161,3 +161,21 @@ CREATE TABLE IF NOT EXISTS tls_certificates (
     expires_at          DATETIME NOT NULL,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Key-check row: encrypted with the current master key so startup can tell which key is active.
+CREATE TABLE IF NOT EXISTS vault_meta (
+    name                TEXT PRIMARY KEY,
+    ciphertext_base64   TEXT NOT NULL,
+    nonce_base64        TEXT NOT NULL
+);
+
+-- Where an app came from (GitHub) and which commit is live, for update checks.
+CREATE TABLE IF NOT EXISTS app_sources (
+    app_id              TEXT PRIMARY KEY,
+    repo_url            TEXT NOT NULL,
+    git_ref             TEXT NOT NULL DEFAULT 'main',
+    installed_commit    TEXT NOT NULL DEFAULT '',
+    latest_commit       TEXT NOT NULL DEFAULT '',
+    checked_at          DATETIME,
+    FOREIGN KEY(app_id) REFERENCES apps(app_id) ON DELETE CASCADE
+);

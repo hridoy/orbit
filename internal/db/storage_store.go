@@ -196,6 +196,13 @@ func (s *StorageStore) CreateMultipartUpload(uploadID, bucketID, objectKey strin
 	return err
 }
 
+// GetMultipartUpload returns the bucket and key an upload was started for.
+func (s *StorageStore) GetMultipartUpload(uploadID string) (bucketID, objectKey string, err error) {
+	query := `SELECT bucket_id, object_key FROM storage_multipart_uploads WHERE upload_id = ?;`
+	err = s.db.QueryRow(query, uploadID).Scan(&bucketID, &objectKey)
+	return bucketID, objectKey, err
+}
+
 func (s *StorageStore) SaveMultipartPart(uploadID string, partNumber int, etag string, sizeBytes int64, partPath string) error {
 	query := `
 	INSERT INTO storage_multipart_parts (upload_id, part_number, etag, size_bytes, part_path)
@@ -238,4 +245,3 @@ func (s *StorageStore) DeleteMultipartUpload(uploadID string) error {
 	_, err := s.db.Exec(query, uploadID)
 	return err
 }
-

@@ -65,7 +65,12 @@ func (s *ProcessSupervisor) StartProcess(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	rb := s.GetRingBuffer(app.AppID)
+	// Get-or-create inline: GetRingBuffer takes s.mu, which this function already holds.
+	rb, ok := s.buffers[app.AppID]
+	if !ok {
+		rb = NewRingBuffer(1000)
+		s.buffers[app.AppID] = rb
+	}
 
 	childCtx, cancel := context.WithCancel(context.Background())
 	cmd := exec.CommandContext(childCtx, app.BinaryEntrypoint)

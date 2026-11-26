@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -204,3 +205,38 @@ func hashFileSHA256(filePath string) (string, error) {
 }
 
 var _ = errors.New
+
+// isRestorable reports whether an app's last live version still exists on disk.
+func isRestorable(appsDir string, app *db.App) bool {
+	if app.CurrentVersion == nil || *app.CurrentVersion == "" {
+		return false
+	}
+	versionDir := filepath.Join(appsDir, app.AppID, "versions", *app.CurrentVersion)
+	info, err := os.Stat(versionDir)
+	return err == nil && info.IsDir()
+}
+
+// RestoreApps starts every app that was live before the agent last stopped. Processes are
+// children of the agent and die with it, so each one is redeployed to the same version through
+// the normal health-checked activation path. It runs apps one at a time.
+func (d *DeployCoordinator) RestoreApps() {
+	apps, err := d.appStore.ListApps()
+	if err != nil {
+		log.Printf("restore: list apps: %v", err)
+		return
+	}
+	for _, app := range apps {
+		if !isRestorable(d.cfg.AppsDir, app) {
+			continue
+		}
+		version := *app.CurrentVersion
+		rb := d.supervisor.GetRingBuffer(app.AppID)
+		rb.Append(fmt.Sprintf("[restore] agent restarted; starting version %s", version))
+		if _, err := d.ActivateDeployment(context.Background(), app.AppID, version, "restore"); err != nil {
+			rb.Append(fmt.Sprintf("[restore] failed: %v", err))
+			log.Printf("restore %s: %v", app.AppID, err)
+			continue
+		}
+		log.Printf("restore %s: live on version %s", app.AppID, version)
+	}
+}

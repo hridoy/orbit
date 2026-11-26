@@ -1,0 +1,60 @@
+name: release
+
+# Push a tag like v0.2.0 to build, sign, and publish the agent.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      ORBIT_RELEASE_KEY: ${{ secrets.ORBIT_RELEASE_KEY }}
+      ORBIT_RELEASE_PUBKEY: ${{ vars.ORBIT_RELEASE_PUBKEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Build UI (embedded into the agent)
+        working-directory: ui
+        run: npm ci && npm run build
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build agent for linux amd64 and arm64
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          COMMIT="$(git rev-parse --short HEAD)"
+          LDFLAGS="-s -w \
+            -X orbit/internal/buildinfo.Version=${VERSION} \
+            -X orbit/internal/buildinfo.GitCommit=${COMMIT} \
+            -X orbit/internal/buildinfo.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            -X orbit/internal/update.Repo=${GITHUB_REPOSITORY} \
+            -X orbit/internal/update.PublicKeyHex=${ORBIT_RELEASE_PUBKEY}"
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -ldflags "$LDFLAGS" \
+              -o dist/orbit-agent-linux-$arch ./cmd/orbit-agent
+          done
+
+      - name: Write and sign manifest
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          go run ./tools/releasesign manifest -dir dist -repo "$GITHUB_REPOSITORY" -tag "$GITHUB_REF_NAME" -version "$VERSION"
+          go run ./tools/releasesign sign -dir dist
+
+      - name: Publish GitHub Release
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/orbit-agent-linux-amd64 dist/orbit-agent-linux-arm64 \
+            dist/manifest.json dist/manifest.sig --title "$GITHUB_REF_NAME" --generate-notes

@@ -313,10 +313,23 @@ func (m *DatabaseManager) RestartDatabase(ctx context.Context, dbID string) erro
 }
 
 // DeleteDatabase stops the database and removes all data.
+// DeleteDatabase stops the engine and removes its data. It refuses to delete data while the
+// process is still alive, and it reports removal failures instead of ignoring them.
 func (m *DatabaseManager) DeleteDatabase(ctx context.Context, dbID string) error {
-	_ = m.StopDatabase(dbID)
-	baseDir := m.DBBaseDir(dbID)
-	_ = os.RemoveAll(baseDir)
+	if err := m.StopDatabase(dbID); err != nil {
+		return fmt.Errorf("stop database before delete: %w", err)
+	}
+
+	m.mu.RLock()
+	_, stillRunning := m.running[dbID]
+	m.mu.RUnlock()
+	if stillRunning {
+		return fmt.Errorf("database %s is still running; refusing to delete its data", dbID)
+	}
+
+	if err := os.RemoveAll(m.DBBaseDir(dbID)); err != nil {
+		return fmt.Errorf("remove data directory for %s: %w", dbID, err)
+	}
 	return m.dbStore.DeleteDatabase(dbID)
 }
 

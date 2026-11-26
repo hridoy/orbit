@@ -160,7 +160,7 @@ func TestS3MultipartUpload(t *testing.T) {
 	uploadID := body[uploadIDStart:uploadIDEnd]
 
 	// 2. Upload Part 1
-	chunk1 := bytes.Repeat([]byte("A"), 1024)
+	chunk1 := bytes.Repeat([]byte("A"), 5<<20) // S3 minimum part size is 5 MiB
 	reqPart1 := httptest.NewRequest("PUT", fmt.Sprintf("/s3/large-bucket/large.bin?uploadId=%s&partNumber=1", uploadID), bytes.NewReader(chunk1))
 	reqPart1.Header.Set("Authorization", authHeader)
 	recPart1 := httptest.NewRecorder()
@@ -199,10 +199,10 @@ func TestS3MultipartUpload(t *testing.T) {
 	}
 
 	combined, _ := io.ReadAll(recGet.Body)
-	if len(combined) != 2048 {
-		t.Fatalf("expected 2048 bytes, got %d", len(combined))
+	if len(combined) != len(chunk1)+len(chunk2) {
+		t.Fatalf("expected %d bytes, got %d", len(chunk1)+len(chunk2), len(combined))
 	}
-	if !bytes.Equal(combined[:1024], chunk1) || !bytes.Equal(combined[1024:], chunk2) {
+	if !bytes.Equal(combined[:len(chunk1)], chunk1) || !bytes.Equal(combined[len(chunk1):], chunk2) {
 		t.Fatal("assembled content parts do not match original chunks")
 	}
 }

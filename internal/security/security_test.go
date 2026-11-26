@@ -40,15 +40,6 @@ func TestTokenManager(t *testing.T) {
 		t.Fatalf("NewTokenManager error: %v", err)
 	}
 
-	// 1. Master key validation
-	claims, err := tm.VerifyToken(tm.MasterKeyHex())
-	if err != nil {
-		t.Fatalf("Master key verify failed: %v", err)
-	}
-	if claims.Role != "admin" {
-		t.Errorf("expected master key role admin, got %s", claims.Role)
-	}
-
 	// 2. Token issue & verify
 	token, err := tm.IssueToken("tok_123", "operator", 1*time.Hour)
 	if err != nil {

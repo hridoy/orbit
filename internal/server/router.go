@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"orbit/internal/buildinfo"
 	"orbit/internal/compute"
 	"orbit/internal/config"
 	"orbit/internal/database"
@@ -15,6 +16,7 @@ import (
 	"orbit/internal/s3"
 	"orbit/internal/security"
 	"orbit/internal/telemetry"
+	"orbit/internal/update"
 	"orbit/ui"
 )
 
@@ -31,6 +33,8 @@ type Server struct {
 	jail         *jail.Jail
 	jailHdr      *jail.Handler
 	computeHdr   *compute.ComputeHandler
+	gitHdr       *compute.GitHandler
+	platformHdr  *update.Handler
 	databaseHdr  *database.DatabaseHandler
 	s3Engine     *s3.S3Engine
 	meter        *proxy.BandwidthMeter
@@ -59,6 +63,7 @@ func NewServer(
 	supervisor := compute.NewProcessSupervisor(cfg, cgroups)
 	deployer := compute.NewDeployCoordinator(cfg, appStore, secStore, supervisor)
 	computeHandler := compute.NewComputeHandler(appStore, secStore, cgroups, supervisor, deployer)
+	gitHandler := compute.NewGitHandler(cfg, appStore, db.NewAppSourceStore(dbConn), supervisor, deployer)
 
 	dbManager := database.NewDatabaseManager(cfg, dbStore, secStore, vault)
 	databaseHandler := database.NewDatabaseHandler(dbStore, dbManager, vault)
@@ -84,6 +89,8 @@ func NewServer(
 		jail:         jailInst,
 		jailHdr:      jailHandler,
 		computeHdr:   computeHandler,
+		gitHdr:       gitHandler,
+		platformHdr:  update.NewHandler(cfg.DataDir, buildinfo.Version),
 		databaseHdr:  databaseHandler,
 		s3Engine:     s3Engine,
 		meter:        meter,
@@ -123,6 +130,12 @@ func (s *Server) registerRoutes() {
 	// Register Compute & Deploy routes
 	s.computeHdr.RegisterRoutes(s.mux)
 
+	// Register GitHub install and update routes
+	s.gitHdr.RegisterRoutes(s.mux)
+
+	// Register agent self-update routes
+	s.platformHdr.RegisterRoutes(s.mux)
+
 	// Register Dedicated Native Database routes
 	s.databaseHdr.RegisterRoutes(s.mux)
 
@@ -161,6 +174,9 @@ func (s *Server) Handler() http.Handler {
 
 // ListenAndServe starts the agent HTTP server.
 func (s *Server) ListenAndServe() error {
+	// Bring back apps that were live before the last restart, without blocking the listener.
+	go s.computeHdr.RestoreApps()
+
 	s.httpServer = &http.Server{
 		Addr:              s.cfg.ListenAddr,
 		Handler:           s.Handler(),

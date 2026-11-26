@@ -36,6 +36,7 @@ func (h *DatabaseHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/databases/{id}/stop", h.handleStop)
 	mux.HandleFunc("POST /api/v1/databases/{id}/restart", h.handleRestart)
 	mux.HandleFunc("DELETE /api/v1/databases/{id}", h.handleDelete)
+	mux.HandleFunc("POST /api/v1/databases/{id}/backup", h.handleBackup)
 	mux.HandleFunc("GET /api/v1/databases/{id}/logs", h.handleGetLogs)
 }
 
@@ -160,6 +161,16 @@ func (h *DatabaseHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "database deleted successfully"})
+}
+
+func (h *DatabaseHandler) handleBackup(w http.ResponseWriter, r *http.Request) {
+	dbID := r.PathValue("id")
+	path, err := h.manager.BackupDatabase(r.Context(), dbID)
+	if err != nil {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{"path": path})
 }
 
 func (h *DatabaseHandler) handleGetLogs(w http.ResponseWriter, r *http.Request) {

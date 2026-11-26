@@ -3,7 +3,6 @@ package security
 import (
 	"crypto/ed25519"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,7 +25,6 @@ type TokenClaims struct {
 type TokenManager struct {
 	privKey ed25519.PrivateKey
 	pubKey  ed25519.PublicKey
-	seed    []byte
 }
 
 func NewTokenManager(seed []byte) (*TokenManager, error) {
@@ -40,13 +38,7 @@ func NewTokenManager(seed []byte) (*TokenManager, error) {
 	return &TokenManager{
 		privKey: privKey,
 		pubKey:  pubKey,
-		seed:    seed,
 	}, nil
-}
-
-// MasterKeyHex returns the bootstrap master key as a hex string.
-func (tm *TokenManager) MasterKeyHex() string {
-	return hex.EncodeToString(tm.seed)
 }
 
 // IssueToken mints a compact Ed25519-signed token: <base64(claims)>.<base64(signature)>.
@@ -77,21 +69,10 @@ func (tm *TokenManager) IssueToken(tokenID, role string, ttl time.Duration) (str
 }
 
 // VerifyToken validates the Ed25519 signature and expiration, returning claims.
-// Also allows the raw MasterKeyHex for bootstrap CLI access.
 func (tm *TokenManager) VerifyToken(tokenString string) (*TokenClaims, error) {
 	tokenString = strings.TrimSpace(tokenString)
 	if tokenString == "" {
 		return nil, ErrInvalidToken
-	}
-
-	// Direct master key comparison (constant time check or matching hex)
-	if tokenString == tm.MasterKeyHex() {
-		return &TokenClaims{
-			TokenID:   "master",
-			Role:      "admin",
-			IssuedAt:  time.Now().Unix(),
-			ExpiresAt: 0,
-		}, nil
 	}
 
 	parts := strings.Split(tokenString, ".")

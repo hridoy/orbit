@@ -65,12 +65,12 @@ for i in {1..20}; do
     sleep 0.25
 done
 
-# Read generated master key
-MASTER_KEY=""
-if [ -f "$DEV_ROOT/secrets/master.key" ]; then
-    MASTER_KEY=$(od -An -tx1 "$DEV_ROOT/secrets/master.key" | tr -d ' \n')
+# Read the admin token (the master key is never used as a bearer token)
+ADMIN_TOKEN=""
+if [ -f "$DEV_ROOT/secrets/admin.token" ]; then
+    ADMIN_TOKEN=$(cat "$DEV_ROOT/secrets/admin.token")
 fi
-export ORBIT_TOKEN="$MASTER_KEY"
+export ORBIT_TOKEN="$ADMIN_TOKEN"
 
 # 6. Seed Sample Workload & Dedicated DB (if first launch)
 if [ ! -f "$DEV_ROOT/.seeded" ]; then
@@ -79,18 +79,18 @@ if [ ! -f "$DEV_ROOT/.seeded" ]; then
     # Create sample demo app
     curl -s -X POST "http://127.0.0.1:${PORT}/api/v1/apps" \
         -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $MASTER_KEY" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
         -d '{"app_id":"demo-worker","name":"Edge API Worker","domain":"api.local.orbit","ram_limit_mb":128,"cpu_quota_pct":100}' >/dev/null 2>&1 || true
 
     # Provision sample dedicated database
     curl -s -X POST "http://127.0.0.1:${PORT}/api/v1/databases" \
         -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $MASTER_KEY" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
         -d '{"name":"main_d1_db","engine":"postgres","ram_profile":"micro"}' >/dev/null 2>&1 || true
 
     # Create sample S3 bucket
     curl -s -X PUT "http://127.0.0.1:${PORT}/s3/assets" \
-        -H "Authorization: Bearer $MASTER_KEY" >/dev/null 2>&1 || true
+        -H "Authorization: Bearer $ADMIN_TOKEN" >/dev/null 2>&1 || true
 
     touch "$DEV_ROOT/.seeded"
 fi
@@ -100,7 +100,7 @@ echo "========================================================================"
 echo "🎉 Orbit Sovereign PaaS is LIVE!"
 echo ""
 echo "🌐 Cloudflare Dashboard:  http://localhost:${PORT}"
-echo "🔑 Master Admin Key:      ${MASTER_KEY}"
+echo "🔑 Admin token:           ${DEV_ROOT}/secrets/admin.token"
 echo "📁 Local Storage Root:    ${DEV_ROOT}"
 echo ""
 echo "Try running these in another terminal tab:"
@@ -112,7 +112,7 @@ echo "Press Ctrl+C to stop."
 echo ""
 
 # Attempt to open browser on Mac / Linux
-DASHBOARD_URL="http://localhost:${PORT}/?token=${MASTER_KEY}"
+DASHBOARD_URL="http://localhost:${PORT}/?token=${ADMIN_TOKEN}"
 if command -v open >/dev/null 2>&1; then
     open "$DASHBOARD_URL" >/dev/null 2>&1 || true
 elif command -v xdg-open >/dev/null 2>&1; then

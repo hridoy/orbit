@@ -38,6 +38,11 @@ func NewComputeHandler(
 	}
 }
 
+// RestoreApps redeploys apps that were live before the last agent restart.
+func (h *ComputeHandler) RestoreApps() {
+	h.deployer.RestoreApps()
+}
+
 func (h *ComputeHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/apps", h.handleCreateApp)
 	mux.HandleFunc("GET /api/v1/apps", h.handleListApps)
@@ -97,6 +102,9 @@ func (h *ComputeHandler) handleCreateApp(w http.ResponseWriter, r *http.Request)
 		app.HealthTimeoutSec = 10
 	}
 	app.Status = "stopped"
+	if app.NodeID == "" {
+		app.NodeID = h.deployer.cfg.NodeID // default to this node
+	}
 
 	if err := h.appStore.CreateApp(&app); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

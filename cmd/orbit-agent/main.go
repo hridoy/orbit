@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -16,9 +19,45 @@ import (
 	"orbit/internal/db"
 	"orbit/internal/security"
 	"orbit/internal/server"
+	"orbit/internal/update"
 )
 
 func main() {
+	// Subcommand: `orbit-agent rekey <backup-dir> [--dry-run]` rotates the master key. Stop the agent first.
+	if len(os.Args) >= 3 && os.Args[1] == "rekey" {
+		cfg, err := config.LoadOrInit("")
+		if err != nil {
+			log.Fatalf("❌ Failed to initialize configuration: %v", err)
+		}
+		database, err := db.Open(cfg.DBPath)
+		if err != nil {
+			log.Fatalf("❌ Failed to open database: %v", err)
+		}
+		defer database.Close()
+		dryRun := len(os.Args) == 4 && os.Args[3] == "--dry-run"
+		if err := runRekey(cfg, database, os.Args[2], dryRun); err != nil {
+			log.Fatalf("❌ Rekey failed: %v", err)
+		}
+		return
+	}
+
+	// Subcommand: `orbit-agent backup <dir>` writes a state backup and exits.
+	if len(os.Args) == 3 && os.Args[1] == "backup" {
+		cfg, err := config.LoadOrInit("")
+		if err != nil {
+			log.Fatalf("❌ Failed to initialize configuration: %v", err)
+		}
+		database, err := db.Open(cfg.DBPath)
+		if err != nil {
+			log.Fatalf("❌ Failed to open database: %v", err)
+		}
+		defer database.Close()
+		if err := runBackup(cfg, database, os.Args[2]); err != nil {
+			log.Fatalf("❌ Backup failed: %v", err)
+		}
+		return
+	}
+
 	fmt.Printf("🪐 Orbit Agent v%s (%s) [%s/%s]\n", buildinfo.Version, buildinfo.GitCommit, runtime.GOOS, runtime.GOARCH)
 	fmt.Println("   Sovereign, Zero-Docker, Single-Binary PaaS")
 	fmt.Println("------------------------------------------------------------")
@@ -27,6 +66,18 @@ func main() {
 	cfg, err := config.LoadOrInit("")
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize configuration: %v", err)
+	}
+	// Roll back a self-update that keeps crashing, before doing any other work.
+	if exe, err := os.Executable(); err == nil {
+		restored, err := update.StartupCheck(cfg.DataDir, exe)
+		if err != nil {
+			log.Printf("⚠️ update state check failed: %v", err)
+		}
+		if restored {
+			log.Printf("↩️ new agent version kept crashing; restored the previous binary")
+			os.Exit(1)
+		}
+		update.MarkHealthyAfterDelay(cfg.DataDir)
 	}
 	fmt.Printf("📁 Orbit Root Directory: %s\n", cfg.RootPath)
 	fmt.Printf("🆔 Node ID:              %s\n", cfg.NodeID)
@@ -39,18 +90,39 @@ func main() {
 	defer database.Close()
 	fmt.Printf("🗄️  SQLite WAL Store:     %s\n", cfg.DBPath)
 
-	// 3. Initialize AES-256-GCM Vault
+	// 3. Single-agent lock, then resolve the active master key (finishing or rolling back any
+	// interrupted rotation). `rekey` cannot run while this lock is held.
+	agentLock, err := acquireLock(filepath.Join(cfg.SecretsDir, "agent.lock"))
+	if err != nil {
+		log.Fatalf("❌ %v", err)
+	}
+	defer agentLock.release()
+	masterKey, err := resolveMasterKey(cfg, database)
+	if err != nil {
+		log.Fatalf("❌ %v", err)
+	}
+	cfg.MasterKey = masterKey
+	if err := ensureCanary(database, cfg.MasterKey); err != nil {
+		log.Fatalf("❌ Failed to write vault canary: %v", err)
+	}
+
+	// 4. Initialize AES-256-GCM Vault
 	vault, err := security.NewVault(cfg.MasterKey)
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize secrets vault: %v", err)
 	}
 
-	// 4. Initialize Ed25519 Token Manager
-	tokenMgr, err := security.NewTokenManager(cfg.MasterKey)
+	// 5. Ed25519 token manager, keyed by a subkey, and the CLI admin token file
+	tokenMgr, err := tokenManagerFor(cfg.MasterKey)
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize token manager: %v", err)
 	}
-	fmt.Printf("🔑 Master Admin Key:     %s\n", tokenMgr.MasterKeyHex())
+	if err := ensureAdminToken(cfg, tokenMgr); err != nil {
+		log.Fatalf("❌ Failed to write admin token: %v", err)
+	}
+	// Never print the key itself: stdout ends up in journald and logs.
+	fingerprint := sha256.Sum256(cfg.MasterKey)
+	fmt.Printf("🔑 Master key fingerprint: %s (stored in %s)\n", hex.EncodeToString(fingerprint[:4]), cfg.SecretsDir)
 
 	// 5. Register / Heartbeat local node record
 	hostname, _ := os.Hostname()

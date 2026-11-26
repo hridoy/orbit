@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -18,7 +19,15 @@ var (
 	ErrMissingAuthHeader = errors.New("missing authorization header or presigned query params")
 	ErrInvalidSignature  = errors.New("the request signature we calculated does not match the signature you provided")
 	ErrSignatureExpired  = errors.New("presigned URL has expired")
+	ErrRequestTooSkewed  = errors.New("request timestamp is outside the allowed clock skew")
+	ErrUnsignedWrite     = errors.New("UNSIGNED-PAYLOAD is not allowed for write requests")
+	ErrPresignedWrite    = errors.New("presigned URLs are only accepted for GET and HEAD")
 )
+
+// maxClockSkew bounds how far a signed request's X-Amz-Date may drift from server time.
+const maxClockSkew = 15 * time.Minute
+
+var sha256HexRe = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 type SigV4Auth struct {
 	AccessKey string
@@ -83,29 +92,44 @@ func CanonicalQueryString(query url.Values) string {
 	return strings.Join(parts, "&")
 }
 
-// VerifyRequest authenticates an incoming S3 request (either via Header or Presigned Query).
-func (v *SigV4Auth) VerifyRequest(r *http.Request, payloadHash string) error {
-	// 1. Check Presigned URL query params first
-	q := r.URL.Query()
-	if q.Get("X-Amz-Signature") != "" {
-		return v.verifyPresigned(r)
+// checkClockSkew rejects requests whose X-Amz-Date is missing, malformed, or too far from now.
+func checkClockSkew(amzDate string, now time.Time) error {
+	t, err := time.Parse("20060102T150405Z", amzDate)
+	if err != nil {
+		return errors.New("missing or invalid X-Amz-Date")
+	}
+	drift := now.Sub(t)
+	if drift < 0 {
+		drift = -drift
+	}
+	if drift > maxClockSkew {
+		return ErrRequestTooSkewed
+	}
+	return nil
+}
+
+// VerifyRequest authenticates an incoming S3 request (header or presigned query).
+// On success it returns the payload SHA-256 (lowercase hex) that the request body
+// must match, or "" when the body is not covered by the signature (presigned GET/HEAD
+// and unsigned reads). Callers must verify the body against that hash for uploads.
+func (v *SigV4Auth) VerifyRequest(r *http.Request) (string, error) {
+	// 1. Presigned URL query params
+	if r.URL.Query().Get("X-Amz-Signature") != "" {
+		return "", v.verifyPresigned(r)
 	}
 
-	// 2. Check Authorization Header
+	// 2. Authorization header
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return ErrMissingAuthHeader
+		return "", ErrMissingAuthHeader
 	}
-
 	if !strings.HasPrefix(authHeader, "AWS4-HMAC-SHA256 ") {
-		return errors.New("unsupported authorization scheme")
+		return "", errors.New("unsupported authorization scheme")
 	}
 
-	// Parse header components
 	authParams := strings.TrimPrefix(authHeader, "AWS4-HMAC-SHA256 ")
 	parts := strings.Split(authParams, ", ")
 	var credential, signedHeaders, signature string
-
 	for _, p := range parts {
 		kv := strings.SplitN(p, "=", 2)
 		if len(kv) != 2 {
@@ -120,48 +144,45 @@ func (v *SigV4Auth) VerifyRequest(r *http.Request, payloadHash string) error {
 			signature = kv[1]
 		}
 	}
-
 	if credential == "" || signedHeaders == "" || signature == "" {
-		return errors.New("malformed authorization header")
+		return "", errors.New("malformed authorization header")
 	}
 
 	// Credential format: <accessKey>/<dateStamp>/<region>/s3/aws4_request
 	credParts := strings.Split(credential, "/")
 	if len(credParts) != 5 {
-		return errors.New("invalid credential scope in authorization header")
+		return "", errors.New("invalid credential scope in authorization header")
 	}
-
-	reqAccessKey := credParts[0]
+	if credParts[0] != v.AccessKey {
+		return "", errors.New("invalid access key ID")
+	}
 	dateStamp := credParts[1]
 	reqRegion := credParts[2]
 
-	if reqAccessKey != v.AccessKey {
-		return errors.New("invalid access key ID")
-	}
-
-	// Determine request date from X-Amz-Date or Date
 	amzDate := r.Header.Get("X-Amz-Date")
-	if amzDate == "" {
-		amzDate = r.Header.Get("Date")
+	if err := checkClockSkew(amzDate, time.Now().UTC()); err != nil {
+		return "", err
 	}
 
-	// Canonical headers and signed headers list
-	shList := strings.Split(signedHeaders, ";")
+	// The payload hash must be declared and signed. Only a real hash is accepted for writes.
+	payloadHash := r.Header.Get("X-Amz-Content-Sha256")
+	switch {
+	case payloadHash == "UNSIGNED-PAYLOAD":
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			return "", ErrUnsignedWrite
+		}
+	case sha256HexRe.MatchString(payloadHash):
+	default:
+		return "", errors.New("X-Amz-Content-Sha256 must be a SHA-256 hex digest")
+	}
+
 	var canonicalHeaders strings.Builder
-	for _, h := range shList {
+	for _, h := range strings.Split(signedHeaders, ";") {
 		hLower := strings.ToLower(strings.TrimSpace(h))
 		val := strings.TrimSpace(r.Header.Get(hLower))
 		canonicalHeaders.WriteString(fmt.Sprintf("%s:%s\n", hLower, val))
 	}
 
-	if payloadHash == "" {
-		payloadHash = r.Header.Get("X-Amz-Content-Sha256")
-		if payloadHash == "" {
-			payloadHash = "UNSIGNED-PAYLOAD"
-		}
-	}
-
-	// Build Canonical Request
 	canonicalRequest := fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s",
 		r.Method,
 		r.URL.Path,
@@ -171,24 +192,37 @@ func (v *SigV4Auth) VerifyRequest(r *http.Request, payloadHash string) error {
 		payloadHash,
 	)
 
-	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", dateStamp, reqRegion)
+	if err := v.checkSignature(canonicalRequest, amzDate, dateStamp, reqRegion, signature); err != nil {
+		return "", err
+	}
+
+	if payloadHash == "UNSIGNED-PAYLOAD" {
+		return "", nil
+	}
+	return payloadHash, nil
+}
+
+func (v *SigV4Auth) checkSignature(canonicalRequest, amzDate, dateStamp, region, signature string) error {
+	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", dateStamp, region)
 	stringToSign := fmt.Sprintf("AWS4-HMAC-SHA256\n%s\n%s\n%s",
 		amzDate,
 		credentialScope,
 		sha256Hex([]byte(canonicalRequest)),
 	)
-
-	signingKey := DeriveSigningKey(v.SecretKey, dateStamp, reqRegion, "s3")
-	expectedSignature := hex.EncodeToString(hmacSHA256(signingKey, []byte(stringToSign)))
-
-	if subtle.ConstantTimeCompare([]byte(signature), []byte(expectedSignature)) != 1 {
+	signingKey := DeriveSigningKey(v.SecretKey, dateStamp, region, "s3")
+	expected := hex.EncodeToString(hmacSHA256(signingKey, []byte(stringToSign)))
+	if subtle.ConstantTimeCompare([]byte(signature), []byte(expected)) != 1 {
 		return ErrInvalidSignature
 	}
-
 	return nil
 }
 
 func (v *SigV4Auth) verifyPresigned(r *http.Request) error {
+	// Presigned URLs carry no body hash, so they are only valid for reads.
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return ErrPresignedWrite
+	}
+
 	q := r.URL.Query()
 	signature := q.Get("X-Amz-Signature")
 	credential := q.Get("X-Amz-Credential")
@@ -205,9 +239,16 @@ func (v *SigV4Auth) verifyPresigned(r *http.Request) error {
 	if expiresStr != "" {
 		_, _ = fmt.Sscanf(expiresStr, "%d", &expiresSec)
 	}
+	if expiresSec <= 0 || expiresSec > 7*24*3600 {
+		return errors.New("X-Amz-Expires must be between 1 and 604800 seconds")
+	}
 
-	if time.Now().UTC().After(reqTime.Add(time.Duration(expiresSec) * time.Second)) {
+	now := time.Now().UTC()
+	if now.After(reqTime.Add(time.Duration(expiresSec) * time.Second)) {
 		return ErrSignatureExpired
+	}
+	if reqTime.After(now.Add(maxClockSkew)) {
+		return ErrRequestTooSkewed
 	}
 
 	credParts := strings.Split(credential, "/")
@@ -217,9 +258,8 @@ func (v *SigV4Auth) verifyPresigned(r *http.Request) error {
 	dateStamp := credParts[1]
 	reqRegion := credParts[2]
 
-	shList := strings.Split(signedHeaders, ";")
 	var canonicalHeaders strings.Builder
-	for _, h := range shList {
+	for _, h := range strings.Split(signedHeaders, ";") {
 		hLower := strings.ToLower(strings.TrimSpace(h))
 		val := strings.TrimSpace(r.Header.Get(hLower))
 		canonicalHeaders.WriteString(fmt.Sprintf("%s:%s\n", hLower, val))
@@ -233,24 +273,10 @@ func (v *SigV4Auth) verifyPresigned(r *http.Request) error {
 		signedHeaders,
 	)
 
-	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", dateStamp, reqRegion)
-	stringToSign := fmt.Sprintf("AWS4-HMAC-SHA256\n%s\n%s\n%s",
-		amzDate,
-		credentialScope,
-		sha256Hex([]byte(canonicalRequest)),
-	)
-
-	signingKey := DeriveSigningKey(v.SecretKey, dateStamp, reqRegion, "s3")
-	expectedSignature := hex.EncodeToString(hmacSHA256(signingKey, []byte(stringToSign)))
-
-	if subtle.ConstantTimeCompare([]byte(signature), []byte(expectedSignature)) != 1 {
-		return ErrInvalidSignature
-	}
-
-	return nil
+	return v.checkSignature(canonicalRequest, amzDate, dateStamp, reqRegion, signature)
 }
 
-// GeneratePresignedURL creates an AWS SigV4 presigned URL for GET/PUT operations.
+// GeneratePresignedURL creates an AWS SigV4 presigned URL for GET operations.
 func (v *SigV4Auth) GeneratePresignedURL(method, host, bucket, key string, ttl time.Duration) string {
 	now := time.Now().UTC()
 	amzDate := now.Format("20060102T150405Z")

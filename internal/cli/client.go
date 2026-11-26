@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,11 +35,11 @@ func NewClient(serverURL, token string) *Client {
 		if envToken := os.Getenv("ORBIT_TOKEN"); envToken != "" {
 			token = envToken
 		} else {
-			// Auto-discover local master key if running on same node
+			// Auto-discover the admin token on this node. The master key is never used as a token.
 			root := config.DefaultRootPath()
-			keyPath := filepath.Join(root, "secrets", "master.key")
-			if keyBytes, err := os.ReadFile(keyPath); err == nil && len(keyBytes) == 32 {
-				token = hex.EncodeToString(keyBytes)
+			tokenPath := filepath.Join(root, "secrets", "admin.token")
+			if b, err := os.ReadFile(tokenPath); err == nil {
+				token = strings.TrimSpace(string(b))
 			}
 		}
 	}
