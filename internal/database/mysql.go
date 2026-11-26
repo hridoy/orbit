@@ -97,7 +97,7 @@ func (e *MySQLEngine) Provision(
 			_ = applyDBUser(cmd)
 			_ = cmd.Run()
 		} else if e.mysqldBin != "" {
-			cmd := exec.CommandContext(ctx, e.mysqldBin, "--initialize-insecure", fmt.Sprintf("--datadir=%s", dataDir))
+			cmd := exec.CommandContext(ctx, e.mysqldBin, "--no-defaults", "--initialize-insecure", fmt.Sprintf("--datadir=%s", dataDir))
 			_ = applyDBUser(cmd)
 			_ = cmd.Run()
 		}
