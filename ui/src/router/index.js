@@ -18,6 +18,13 @@ const routes = [
     meta: { title: 'Apps — Orbit VPS Controller' }
   },
   {
+    path: '/apps/create',
+    alias: '/workers/create',
+    name: 'CreateApp',
+    component: () => import('@/views/apps/CreateAppView.vue'),
+    meta: { title: 'Create Application — Orbit VPS Controller' }
+  },
+  {
     path: '/apps/:id',
     alias: '/workers/:id',
     name: 'AppDetail',

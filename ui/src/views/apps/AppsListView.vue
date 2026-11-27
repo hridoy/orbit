@@ -15,8 +15,8 @@
           </p>
         </div>
 
-        <button class="cf-wp-create-btn" @click="showCreateModal = true">
-          <span>Deploy App</span>
+        <button class="cf-wp-create-btn" @click="$router.push('/apps/create')">
+          <span>Create application</span>
         </button>
       </div>
 
