@@ -51,16 +51,18 @@ const routes = [
     meta: { title: 'WAF & Security Rules — Cloudflare' }
   },
   {
-    path: '/workers',
-    name: 'Workers',
+    path: '/apps',
+    alias: '/workers',
+    name: 'Apps',
     component: () => import('@/views/WorkersView.vue'),
-    meta: { title: 'Workers & Pages Compute — Cloudflare' }
+    meta: { title: 'Apps — Orbit VPS Controller' }
   },
   {
-    path: '/workers/:id',
-    name: 'WorkerDetail',
+    path: '/apps/:id',
+    alias: '/workers/:id',
+    name: 'AppDetail',
     component: () => import('@/views/WorkerDetailView.vue'),
-    meta: { title: 'Worker Console — Cloudflare' }
+    meta: { title: 'App Console — Orbit VPS Controller' }
   },
   {
     path: '/ai',

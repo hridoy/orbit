@@ -96,9 +96,9 @@
           <!-- Section: APPS -->
           <div v-if="!sidebarMini" class="sidebar-section-header">Apps</div>
 
-          <router-link to="/workers" class="sidebar-nav-item" active-class="active">
+          <router-link to="/apps" class="sidebar-nav-item" active-class="active">
             <CfIcon name="edgeworker" size="18" />
-            <span v-if="!sidebarMini">Apps & Services</span>
+            <span v-if="!sidebarMini">Apps</span>
           </router-link>
 
           <!-- Section: STORAGE (Separate) -->
