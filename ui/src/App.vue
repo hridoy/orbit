@@ -38,12 +38,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import AuthGate from '@/AuthGate.vue'
-import TheSidebar from '@/components/TheSidebar.vue'
-import TheHeader from '@/components/TheHeader.vue'
-import TheFooter from '@/components/TheFooter.vue'
-import ThemeCustomizer from '@/components/ThemeCustomizer.vue'
-import CommandPalette from '@/components/CommandPalette.vue'
+import AuthGate from '@/components/layout/AuthGate.vue'
+import TheSidebar from '@/components/layout/TheSidebar.vue'
+import TheHeader from '@/components/layout/TheHeader.vue'
+import TheFooter from '@/components/layout/TheFooter.vue'
+import ThemeCustomizer from '@/components/layout/ThemeCustomizer.vue'
+import CommandPalette from '@/components/layout/CommandPalette.vue'
 import { useTheme } from '@/composables/useTheme.js'
 import { loadServer } from '@/composables/serverState.js'
 
