@@ -49,6 +49,12 @@ func (s *StorageStore) CreateBucket(b *StorageBucket) error {
 	return err
 }
 
+func (s *StorageStore) DeleteBucket(bucketID string) error {
+	_, _ = s.db.Exec(`DELETE FROM storage_objects WHERE bucket_id = ?;`, bucketID)
+	_, err := s.db.Exec(`DELETE FROM storage_buckets WHERE bucket_id = ?;`, bucketID)
+	return err
+}
+
 func (s *StorageStore) GetBucket(bucketID string) (*StorageBucket, error) {
 	query := `
 	SELECT bucket_id, owner_id, is_public, quota_bytes, used_bytes, created_at, updated_at

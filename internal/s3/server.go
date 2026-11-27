@@ -377,6 +377,10 @@ func (s *S3Engine) handleCreateBucket(w http.ResponseWriter, r *http.Request, bu
 }
 
 func (s *S3Engine) handleDeleteBucket(w http.ResponseWriter, r *http.Request, bucketName string) {
+	if err := s.store.DeleteBucket(bucketName); err != nil {
+		writeS3Error(w, http.StatusInternalServerError, "InternalError", err.Error())
+		return
+	}
 	_ = os.RemoveAll(s.BucketDir(bucketName))
 	w.WriteHeader(http.StatusNoContent)
 }
