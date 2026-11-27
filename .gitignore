@@ -1,5 +1,7 @@
 bin/
 ui/node_modules/
 .orbit*
+!.orbit-release-pubkey.txt
 *.db
 *.log
+.DS_Store
