@@ -18,6 +18,7 @@ type StorageBucket struct {
 	LifecycleDays     int       `json:"lifecycle_days"`
 	WebhookURL        string    `json:"webhook_url"`
 	ErasureEnabled    bool      `json:"erasure_enabled"`
+	SSEEnabled        bool      `json:"sse_enabled"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
 }
@@ -30,8 +31,19 @@ type StorageIAMKey struct {
 	BucketScope  string    `json:"bucket_scope"`
 	PrefixScope  string    `json:"prefix_scope"`
 	Permissions  string    `json:"permissions"`
+	PolicyJSON   string    `json:"policy_json"`
 	Active       bool      `json:"active"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type StoragePeer struct {
+	PeerID       string     `json:"peer_id"`
+	Name         string     `json:"name"`
+	Endpoint     string     `json:"endpoint"`
+	AuthTokenEnc string     `json:"-"`
+	Status       string     `json:"status"`
+	LastSyncAt   *time.Time `json:"last_sync_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 type StorageObject struct {
@@ -89,16 +101,16 @@ func (s *StorageStore) DeleteBucket(bucketID string) error {
 func (s *StorageStore) GetBucket(bucketID string) (*StorageBucket, error) {
 	query := `
 	SELECT bucket_id, owner_id, is_public, quota_bytes, used_bytes,
-	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url, erasure_enabled,
+	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url, erasure_enabled, sse_enabled,
 	       created_at, updated_at
 	FROM storage_buckets WHERE bucket_id = ?;
 	`
 	row := s.db.QueryRow(query, bucketID)
 	var b StorageBucket
-	var isPublicInt, versioningInt, objectLockInt, erasureInt int
+	var isPublicInt, versioningInt, objectLockInt, erasureInt, sseInt int
 	err := row.Scan(
 		&b.BucketID, &b.OwnerID, &isPublicInt, &b.QuotaBytes, &b.UsedBytes,
-		&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL, &erasureInt,
+		&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL, &erasureInt, &sseInt,
 		&b.CreatedAt, &b.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -111,13 +123,14 @@ func (s *StorageStore) GetBucket(bucketID string) (*StorageBucket, error) {
 	b.VersioningEnabled = versioningInt == 1
 	b.ObjectLockEnabled = objectLockInt == 1
 	b.ErasureEnabled = erasureInt == 1
+	b.SSEEnabled = sseInt == 1
 	return &b, nil
 }
 
 func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 	query := `
 	SELECT bucket_id, owner_id, is_public, quota_bytes, used_bytes,
-	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url, erasure_enabled,
+	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url, erasure_enabled, sse_enabled,
 	       created_at, updated_at
 	FROM storage_buckets ORDER BY created_at DESC;
 	`
@@ -130,10 +143,10 @@ func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 	var buckets []*StorageBucket
 	for rows.Next() {
 		var b StorageBucket
-		var isPublicInt, versioningInt, objectLockInt, erasureInt int
+		var isPublicInt, versioningInt, objectLockInt, erasureInt, sseInt int
 		if err := rows.Scan(
 			&b.BucketID, &b.OwnerID, &isPublicInt, &b.QuotaBytes, &b.UsedBytes,
-			&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL, &erasureInt,
+			&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL, &erasureInt, &sseInt,
 			&b.CreatedAt, &b.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -142,6 +155,7 @@ func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 		b.VersioningEnabled = versioningInt == 1
 		b.ObjectLockEnabled = objectLockInt == 1
 		b.ErasureEnabled = erasureInt == 1
+		b.SSEEnabled = sseInt == 1
 		buckets = append(buckets, &b)
 	}
 	return buckets, nil
@@ -149,7 +163,7 @@ func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 
 func (s *StorageStore) UpdateBucketSettings(
 	bucketID string,
-	isPublic, versioning, objectLock, erasure bool,
+	isPublic, versioning, objectLock, erasure, sse bool,
 	retentionDays, lifecycleDays int,
 	quotaBytes int64,
 	webhookURL string,
@@ -162,13 +176,13 @@ func (s *StorageStore) UpdateBucketSettings(
 	}
 	query := `
 	UPDATE storage_buckets
-	SET is_public = ?, versioning_enabled = ?, object_lock_enabled = ?, erasure_enabled = ?,
+	SET is_public = ?, versioning_enabled = ?, object_lock_enabled = ?, erasure_enabled = ?, sse_enabled = ?,
 	    retention_days = ?, lifecycle_days = ?, quota_bytes = ?, webhook_url = ?,
 	    updated_at = CURRENT_TIMESTAMP
 	WHERE bucket_id = ?;
 	`
 	_, err := s.db.Exec(query,
-		b2i(isPublic), b2i(versioning), b2i(objectLock), b2i(erasure),
+		b2i(isPublic), b2i(versioning), b2i(objectLock), b2i(erasure), b2i(sse),
 		retentionDays, lifecycleDays, quotaBytes, webhookURL, bucketID,
 	)
 	return err
@@ -391,22 +405,22 @@ func (s *StorageStore) CreateIAMKey(k *StorageIAMKey) error {
 	}
 	query := `
 	INSERT INTO storage_iam_keys (
-		key_id, access_key, secret_key_enc, label, bucket_scope, prefix_scope, permissions, active
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+		key_id, access_key, secret_key_enc, label, bucket_scope, prefix_scope, permissions, policy_json, active
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
-	_, err := s.db.Exec(query, k.KeyID, k.AccessKey, k.SecretKeyEnc, k.Label, k.BucketScope, k.PrefixScope, k.Permissions, activeInt)
+	_, err := s.db.Exec(query, k.KeyID, k.AccessKey, k.SecretKeyEnc, k.Label, k.BucketScope, k.PrefixScope, k.Permissions, k.PolicyJSON, activeInt)
 	return err
 }
 
 func (s *StorageStore) GetIAMKeyByAccessKey(accessKey string) (*StorageIAMKey, error) {
 	query := `
-	SELECT key_id, access_key, secret_key_enc, label, bucket_scope, prefix_scope, permissions, active, created_at
+	SELECT key_id, access_key, secret_key_enc, label, bucket_scope, prefix_scope, permissions, policy_json, active, created_at
 	FROM storage_iam_keys WHERE access_key = ? AND active = 1;
 	`
 	var k StorageIAMKey
 	var activeInt int
 	err := s.db.QueryRow(query, accessKey).Scan(
-		&k.KeyID, &k.AccessKey, &k.SecretKeyEnc, &k.Label, &k.BucketScope, &k.PrefixScope, &k.Permissions, &activeInt, &k.CreatedAt,
+		&k.KeyID, &k.AccessKey, &k.SecretKeyEnc, &k.Label, &k.BucketScope, &k.PrefixScope, &k.Permissions, &k.PolicyJSON, &activeInt, &k.CreatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -420,7 +434,7 @@ func (s *StorageStore) GetIAMKeyByAccessKey(accessKey string) (*StorageIAMKey, e
 
 func (s *StorageStore) ListIAMKeys() ([]*StorageIAMKey, error) {
 	query := `
-	SELECT key_id, access_key, label, bucket_scope, prefix_scope, permissions, active, created_at
+	SELECT key_id, access_key, label, bucket_scope, prefix_scope, permissions, policy_json, active, created_at
 	FROM storage_iam_keys ORDER BY created_at DESC;
 	`
 	rows, err := s.db.Query(query)
@@ -433,7 +447,7 @@ func (s *StorageStore) ListIAMKeys() ([]*StorageIAMKey, error) {
 	for rows.Next() {
 		var k StorageIAMKey
 		var activeInt int
-		if err := rows.Scan(&k.KeyID, &k.AccessKey, &k.Label, &k.BucketScope, &k.PrefixScope, &k.Permissions, &activeInt, &k.CreatedAt); err != nil {
+		if err := rows.Scan(&k.KeyID, &k.AccessKey, &k.Label, &k.BucketScope, &k.PrefixScope, &k.Permissions, &k.PolicyJSON, &activeInt, &k.CreatedAt); err != nil {
 			return nil, err
 		}
 		k.Active = activeInt == 1
@@ -444,6 +458,56 @@ func (s *StorageStore) ListIAMKeys() ([]*StorageIAMKey, error) {
 
 func (s *StorageStore) DeleteIAMKey(keyID string) error {
 	_, err := s.db.Exec(`DELETE FROM storage_iam_keys WHERE key_id = ?;`, keyID)
+	return err
+}
+
+func (s *StorageStore) CreatePeer(p *StoragePeer) error {
+	query := `
+	INSERT INTO storage_peers (peer_id, name, endpoint, auth_token_enc, status)
+	VALUES (?, ?, ?, ?, ?);
+	`
+	_, err := s.db.Exec(query, p.PeerID, p.Name, p.Endpoint, p.AuthTokenEnc, p.Status)
+	return err
+}
+
+func (s *StorageStore) ListPeers() ([]*StoragePeer, error) {
+	query := `
+	SELECT peer_id, name, endpoint, auth_token_enc, status, last_sync_at, created_at
+	FROM storage_peers ORDER BY created_at DESC;
+	`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var peers []*StoragePeer
+	for rows.Next() {
+		var p StoragePeer
+		var lastSync sql.NullTime
+		if err := rows.Scan(&p.PeerID, &p.Name, &p.Endpoint, &p.AuthTokenEnc, &p.Status, &lastSync, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		if lastSync.Valid {
+			t := lastSync.Time
+			p.LastSyncAt = &t
+		}
+		peers = append(peers, &p)
+	}
+	return peers, nil
+}
+
+func (s *StorageStore) DeletePeer(peerID string) error {
+	_, err := s.db.Exec(`DELETE FROM storage_peers WHERE peer_id = ?;`, peerID)
+	return err
+}
+
+func (s *StorageStore) UpdatePeerStatus(peerID, status string, synced bool) error {
+	if synced {
+		_, err := s.db.Exec(`UPDATE storage_peers SET status = ?, last_sync_at = CURRENT_TIMESTAMP WHERE peer_id = ?;`, status, peerID)
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE storage_peers SET status = ? WHERE peer_id = ?;`, status, peerID)
 	return err
 }
 

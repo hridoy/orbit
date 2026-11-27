@@ -24,6 +24,7 @@ func (s *S3Engine) registerAdvancedRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/storage/buckets/{name}/presign", s.handlePresignObject)
 	mux.HandleFunc("POST /api/v1/storage/buckets/{name}/lifecycle/run", s.handleRunLifecycle)
 	s.registerIAMAndErasureRoutes(mux)
+	s.registerClusterRoutes(mux)
 }
 
 func requireAdmin(w http.ResponseWriter, r *http.Request) bool {
@@ -70,6 +71,7 @@ type bucketSettingsReq struct {
 	VersioningEnabled bool   `json:"versioning_enabled"`
 	ObjectLockEnabled bool   `json:"object_lock_enabled"`
 	ErasureEnabled    bool   `json:"erasure_enabled"`
+	SSEEnabled        bool   `json:"sse_enabled"`
 	RetentionDays     int    `json:"retention_days"`
 	LifecycleDays     int    `json:"lifecycle_days"`
 	QuotaBytes        int64  `json:"quota_bytes"`
@@ -109,6 +111,7 @@ func (s *S3Engine) handleUpdateBucketSettings(w http.ResponseWriter, r *http.Req
 		req.VersioningEnabled,
 		req.ObjectLockEnabled,
 		req.ErasureEnabled,
+		req.SSEEnabled,
 		req.RetentionDays,
 		req.LifecycleDays,
 		req.QuotaBytes,

@@ -71,6 +71,8 @@ func (d *DB) Migrate() error {
 		`ALTER TABLE storage_buckets ADD COLUMN lifecycle_days INTEGER NOT NULL DEFAULT 0;`,
 		`ALTER TABLE storage_buckets ADD COLUMN webhook_url TEXT NOT NULL DEFAULT '';`,
 		`ALTER TABLE storage_buckets ADD COLUMN erasure_enabled INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE storage_buckets ADD COLUMN sse_enabled INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE storage_iam_keys ADD COLUMN policy_json TEXT NOT NULL DEFAULT '';`,
 		`ALTER TABLE storage_objects ADD COLUMN retain_until DATETIME;`,
 	}
 	for _, stmt := range alterStmts {

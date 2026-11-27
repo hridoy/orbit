@@ -75,6 +75,13 @@ func checkIAMPolicy(k *db.StorageIAMKey, method, bucketName, objectKey string) b
 	if k == nil || !k.Active {
 		return false
 	}
+	if strings.TrimSpace(k.PolicyJSON) != "" {
+		ok, err := evaluateIAMPolicyJSON(k.PolicyJSON, method, bucketName, objectKey)
+		if err != nil {
+			return false
+		}
+		return ok
+	}
 	if k.BucketScope != "" && k.BucketScope != "*" && k.BucketScope != bucketName {
 		return false
 	}
@@ -121,6 +128,7 @@ func (s *S3Engine) handleCreateIAMKey(w http.ResponseWriter, r *http.Request) {
 		BucketScope string `json:"bucket_scope"`
 		PrefixScope string `json:"prefix_scope"`
 		Permissions string `json:"permissions"`
+		PolicyJSON  string `json:"policy_json"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<14)).Decode(&req); err != nil {
 		writeS3Error(w, http.StatusBadRequest, "InvalidRequest", err.Error())
@@ -169,6 +177,7 @@ func (s *S3Engine) handleCreateIAMKey(w http.ResponseWriter, r *http.Request) {
 		BucketScope:  req.BucketScope,
 		PrefixScope:  req.PrefixScope,
 		Permissions:  req.Permissions,
+		PolicyJSON:   strings.TrimSpace(req.PolicyJSON),
 		Active:       true,
 	}
 	if err := s.store.CreateIAMKey(rec); err != nil {

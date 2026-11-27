@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS storage_buckets (
     lifecycle_days      INTEGER NOT NULL DEFAULT 0,
     webhook_url         TEXT NOT NULL DEFAULT '',
     erasure_enabled     INTEGER NOT NULL DEFAULT 0,
+    sse_enabled         INTEGER NOT NULL DEFAULT 0,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -109,7 +110,18 @@ CREATE TABLE IF NOT EXISTS storage_iam_keys (
     bucket_scope        TEXT NOT NULL DEFAULT '*',
     prefix_scope        TEXT NOT NULL DEFAULT '',
     permissions         TEXT NOT NULL DEFAULT 'read',
+    policy_json         TEXT NOT NULL DEFAULT '',
     active              INTEGER NOT NULL DEFAULT 1,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS storage_peers (
+    peer_id             TEXT PRIMARY KEY,
+    name                TEXT NOT NULL,
+    endpoint            TEXT NOT NULL UNIQUE,
+    auth_token_enc      TEXT NOT NULL,
+    status              TEXT NOT NULL DEFAULT 'unknown',
+    last_sync_at        DATETIME,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

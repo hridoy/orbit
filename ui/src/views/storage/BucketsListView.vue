@@ -106,6 +106,43 @@
             </template>
           </CfTable>
         </CfCard>
+
+        <!-- Multi-Node Cluster Peers (Replication & Read Failover) -->
+        <CfCard
+          title="Multi-Node Storage Peers (Cluster Replication)"
+          subtitle="Replicate S3 PUT/DELETE across remote Orbit nodes and fail over reads if local storage is degraded"
+          style="margin-top: 1.25rem;"
+        >
+          <template #actions>
+            <CfButton variant="secondary" size="sm" icon="plus" @click="showAddPeerModal = true">
+              Add Peer Node
+            </CfButton>
+          </template>
+
+          <CfEmptyState
+            v-if="!peers.length"
+            title="Single-node mode"
+            description="Add remote Orbit peer nodes to enable async multi-server replication and automatic read failover."
+            action-text="Add Peer Node"
+            action-icon="plus"
+            @action="showAddPeerModal = true"
+          />
+
+          <CfTable v-else :columns="peerColumns" :data="peers" row-key="peer_id">
+            <template #col-endpoint="{ val }">
+              <code style="font-size: 0.82rem;">{{ val }}</code>
+            </template>
+            <template #col-status="{ val }">
+              <CfBadge :variant="val === 'online' ? 'success' : 'danger'" size="sm" dot>{{ val }}</CfBadge>
+            </template>
+            <template #actions="{ row }">
+              <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+                <CfButton variant="secondary" size="sm" @click="syncPeer(row.peer_id)">Sync Now</CfButton>
+                <CfButton variant="danger-outline" size="sm" @click="removePeer(row.peer_id)">Remove</CfButton>
+              </div>
+            </template>
+          </CfTable>
+        </CfCard>
       </div>
 
       <!-- Right: S3 API Credentials & Endpoint (Using CfCopyField from cloudflare-ui) -->
@@ -184,6 +221,16 @@
             <option value="admin">Full Admin</option>
           </select>
         </div>
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem;">Custom AWS IAM JSON Policy (optional)</label>
+          <textarea
+            v-model="iamForm.policy_json"
+            rows="3"
+            class="cf-iam-select"
+            style="font-family: monospace; font-size: 0.78rem;"
+            placeholder='{"Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::assets/*"]}]}'
+          ></textarea>
+        </div>
         <div v-if="createdIamSecret" style="display: flex; flex-direction: column; gap: 0.65rem; padding-top: 0.5rem; border-top: 1px solid #e4e4e7;">
           <CfAlert variant="success" title="IAM Key Created">Copy the Secret Key now — it will not be shown again.</CfAlert>
           <CfCopyField label="Access Key ID" :value="createdIamSecret.access_key" />
@@ -193,6 +240,19 @@
       <template #footer>
         <CfButton variant="outline" @click="closeIamModal">Close</CfButton>
         <CfButton v-if="!createdIamSecret" variant="primary" :loading="creatingIam" @click="createIamKey">Issue Key</CfButton>
+      </template>
+    </CfModal>
+
+    <!-- Add Cluster Peer Modal -->
+    <CfModal v-model="showAddPeerModal" title="Add Storage Peer Node" size="sm">
+      <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+        <CfInput v-model="peerForm.name" label="Node Name" placeholder="e.g. eu-frankfurt-2" required />
+        <CfInput v-model="peerForm.endpoint" label="Peer Endpoint URL" placeholder="https://node2.example.com" required />
+        <CfInput v-model="peerForm.auth_token" label="Peer Bearer Token" type="password" placeholder="Admin or replication token" />
+      </div>
+      <template #footer>
+        <CfButton variant="outline" @click="showAddPeerModal = false">Cancel</CfButton>
+        <CfButton variant="primary" :loading="addingPeer" @click="addPeer">Add Peer</CfButton>
       </template>
     </CfModal>
   </div>
@@ -218,13 +278,24 @@ const iamKeys = ref([])
 const showCreateIamModal = ref(false)
 const creatingIam = ref(false)
 const createdIamSecret = ref(null)
-const iamForm = ref({ label: '', bucket_scope: '*', prefix_scope: '', permissions: 'read' })
+const iamForm = ref({ label: '', bucket_scope: '*', prefix_scope: '', permissions: 'read', policy_json: '' })
 
 const iamColumns = [
   { key: 'label', label: 'Label' },
   { key: 'access_key', label: 'Access Key' },
   { key: 'bucket_scope', label: 'Scope' },
   { key: 'permissions', label: 'Permissions', width: '140px' }
+]
+
+const peers = ref([])
+const showAddPeerModal = ref(false)
+const addingPeer = ref(false)
+const peerForm = ref({ name: '', endpoint: '', auth_token: '' })
+
+const peerColumns = [
+  { key: 'name', label: 'Peer Name' },
+  { key: 'endpoint', label: 'Endpoint' },
+  { key: 'status', label: 'Status', width: '110px' }
 ]
 
 const bucketColumns = [
@@ -260,10 +331,11 @@ function parseS3BucketsXml(xmlText) {
 async function fetchAll() {
   loading.value = true
   try {
-    const [s3Res, credRes, iamRes] = await Promise.all([
+    const [s3Res, credRes, iamRes, peerRes] = await Promise.all([
       apiFetch('/s3/'),
       apiFetch('/api/v1/storage/credentials'),
-      apiFetch('/api/v1/storage/iam-keys')
+      apiFetch('/api/v1/storage/iam-keys'),
+      apiFetch('/api/v1/storage/peers')
     ])
     if (credRes.ok) {
       creds.value = await credRes.json()
@@ -275,6 +347,10 @@ async function fetchAll() {
     if (iamRes.ok) {
       const data = await iamRes.json()
       iamKeys.value = data.keys || []
+    }
+    if (peerRes.ok) {
+      const data = await peerRes.json()
+      peers.value = data.peers || []
     }
   } catch (e) {
     console.warn('Failed to fetch S3 storage:', e)
@@ -346,7 +422,35 @@ async function revokeIamKey(keyId) {
 function closeIamModal() {
   showCreateIamModal.value = false
   createdIamSecret.value = null
-  iamForm.value = { label: '', bucket_scope: '*', prefix_scope: '', permissions: 'read' }
+  iamForm.value = { label: '', bucket_scope: '*', prefix_scope: '', permissions: 'read', policy_json: '' }
+}
+
+async function addPeer() {
+  addingPeer.value = true
+  try {
+    const res = await apiFetch('/api/v1/storage/peers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(peerForm.value)
+    })
+    if (res.ok) {
+      showAddPeerModal.value = false
+      peerForm.value = { name: '', endpoint: '', auth_token: '' }
+      await fetchAll()
+    }
+  } finally {
+    addingPeer.value = false
+  }
+}
+
+async function syncPeer(peerId) {
+  await apiFetch(`/api/v1/storage/peers/${encodeURIComponent(peerId)}/sync`, { method: 'POST' })
+  await fetchAll()
+}
+
+async function removePeer(peerId) {
+  const res = await apiFetch(`/api/v1/storage/peers/${encodeURIComponent(peerId)}`, { method: 'DELETE' })
+  if (res.ok) await fetchAll()
 }
 
 onMounted(fetchAll)

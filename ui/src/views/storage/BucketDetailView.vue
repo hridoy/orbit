@@ -18,6 +18,7 @@
           </CfBadge>
           <CfBadge v-if="bucket.versioning_enabled" variant="info" size="sm">Versioning</CfBadge>
           <CfBadge v-if="bucket.erasure_enabled" variant="success" size="sm">RS 4+2 Erasure</CfBadge>
+          <CfBadge v-if="bucket.sse_enabled" variant="info" size="sm">SSE-AES256</CfBadge>
           <CfBadge v-if="bucket.object_lock_enabled" variant="danger" size="sm">
             WORM Lock ({{ bucket.retention_days }}d)
           </CfBadge>
@@ -281,6 +282,14 @@
 
           <label class="cf-toggle-row">
             <div>
+              <div class="cf-toggle-title">SSE-KMS Envelope Encryption (AES-256-GCM)</div>
+              <div class="cf-toggle-desc">Encrypt every object at rest with a per-object 256-bit DEK wrapped by Orbit's MasterKey.</div>
+            </div>
+            <input type="checkbox" v-model="settingsForm.sse_enabled" class="cf-switch" />
+          </label>
+
+          <label class="cf-toggle-row">
+            <div>
               <div class="cf-toggle-title">Object Versioning</div>
               <div class="cf-toggle-desc">Automatically archive previous versions on overwrite or delete and unlock the Versions history tab.</div>
             </div>
@@ -434,6 +443,7 @@ const bucket = ref({
   versioning_enabled: false,
   object_lock_enabled: false,
   erasure_enabled: false,
+  sse_enabled: false,
   retention_days: 0,
   lifecycle_days: 0,
   webhook_url: ''
@@ -455,6 +465,7 @@ const settingsForm = ref({
   versioning_enabled: false,
   object_lock_enabled: false,
   erasure_enabled: false,
+  sse_enabled: false,
   retention_days: 7,
   lifecycle_days: 0,
   quota_bytes: 10737418240,
@@ -549,6 +560,7 @@ async function loadAll() {
         versioning_enabled: !!data.bucket.versioning_enabled,
         object_lock_enabled: !!data.bucket.object_lock_enabled,
         erasure_enabled: !!data.bucket.erasure_enabled,
+        sse_enabled: !!data.bucket.sse_enabled,
         retention_days: data.bucket.retention_days || 7,
         lifecycle_days: data.bucket.lifecycle_days || 0,
         quota_bytes: data.bucket.quota_bytes ?? 10737418240,
@@ -585,6 +597,7 @@ function viewKeyVersions(key) {
 
 function enableAllAdvanced() {
   settingsForm.value.erasure_enabled = true
+  settingsForm.value.sse_enabled = true
   settingsForm.value.versioning_enabled = true
   settingsForm.value.object_lock_enabled = true
   if (!settingsForm.value.retention_days || settingsForm.value.retention_days < 1) {

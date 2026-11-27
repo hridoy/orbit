@@ -547,18 +547,37 @@ func (s *S3Engine) handlePutObject(w http.ResponseWriter, r *http.Request, bucke
 
 	objID := fmt.Sprintf("obj_%s", md5Hex)
 	diskRelPath := cleanKey
+	var plainForPeer []byte
 
-	if bucket != nil && bucket.ErasureEnabled {
+	if bucket != nil && (bucket.ErasureEnabled || bucket.SSEEnabled) {
 		rawBytes, readErr := os.ReadFile(tmpFile.Name())
 		if readErr != nil {
 			writeS3Error(w, http.StatusInternalServerError, "InternalError", readErr.Error())
 			return
 		}
-		if ecErr := s.writeErasureObject(bucketName, objID, rawBytes); ecErr != nil {
-			writeS3Error(w, http.StatusInternalServerError, "InternalError", ecErr.Error())
-			return
+		plainForPeer = rawBytes
+		storeBytes := rawBytes
+		if bucket.SSEEnabled {
+			encBytes, sseErr := s.encryptSSE(rawBytes)
+			if sseErr != nil {
+				writeS3Error(w, http.StatusInternalServerError, "InternalError", sseErr.Error())
+				return
+			}
+			storeBytes = encBytes
+			w.Header().Set("x-amz-server-side-encryption", "AES256")
 		}
-		diskRelPath = "erasure://" + objID
+		if bucket.ErasureEnabled {
+			if ecErr := s.writeErasureObject(bucketName, objID, storeBytes); ecErr != nil {
+				writeS3Error(w, http.StatusInternalServerError, "InternalError", ecErr.Error())
+				return
+			}
+			diskRelPath = "erasure://" + objID
+		} else {
+			if wErr := os.WriteFile(dstPath, storeBytes, 0600); wErr != nil {
+				writeS3Error(w, http.StatusInternalServerError, "InternalError", wErr.Error())
+				return
+			}
+		}
 	} else {
 		if err := os.Rename(tmpFile.Name(), dstPath); err != nil {
 			writeS3Error(w, http.StatusInternalServerError, "InternalError", err.Error())
@@ -597,6 +616,15 @@ func (s *S3Engine) handlePutObject(w http.ResponseWriter, r *http.Request, bucke
 		go s.emitWebhook(bucket.WebhookURL, "s3:ObjectCreated:Put", bucketName, objectKey, written, md5Hex)
 	}
 
+	if r.Header.Get("X-Orbit-Replicated") != "1" {
+		if plainForPeer == nil {
+			plainForPeer, _ = os.ReadFile(dstPath)
+		}
+		if plainForPeer != nil {
+			go s.replicatePutToPeers(bucketName, objectKey, contentType, plainForPeer)
+		}
+	}
+
 	w.Header().Set("ETag", fmt.Sprintf("\"%s\"", md5Hex))
 	w.WriteHeader(http.StatusOK)
 }
@@ -615,8 +643,21 @@ func (s *S3Engine) handleGetObject(w http.ResponseWriter, r *http.Request, bucke
 	if strings.HasPrefix(obj.DiskRelPath, "erasure://") {
 		data, _, ecErr := s.readErasureObject(bucketName, obj.ObjectID)
 		if ecErr != nil {
-			writeS3Error(w, http.StatusInternalServerError, "InternalError", "Erasure reconstruction failed: "+ecErr.Error())
-			return
+			if peerData, _, ok := s.fetchFromPeers(bucketName, objectKey); ok {
+				data = peerData
+			} else {
+				writeS3Error(w, http.StatusInternalServerError, "InternalError", "Erasure reconstruction failed: "+ecErr.Error())
+				return
+			}
+		}
+		if isSSEEncrypted(data) {
+			plain, decErr := s.decryptSSE(data)
+			if decErr != nil {
+				writeS3Error(w, http.StatusInternalServerError, "InternalError", decErr.Error())
+				return
+			}
+			data = plain
+			w.Header().Set("x-amz-server-side-encryption", "AES256")
 		}
 		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 		w.WriteHeader(http.StatusOK)
@@ -627,10 +668,34 @@ func (s *S3Engine) handleGetObject(w http.ResponseWriter, r *http.Request, bucke
 	filePath := filepath.Join(s.BucketDir(bucketName), obj.DiskRelPath)
 	file, err := os.Open(filePath)
 	if err != nil {
+		if peerData, _, ok := s.fetchFromPeers(bucketName, objectKey); ok {
+			w.Header().Set("Content-Length", strconv.Itoa(len(peerData)))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(peerData)
+			return
+		}
 		writeS3Error(w, http.StatusNotFound, "NoSuchKey", "The specified key does not exist.")
 		return
 	}
 	defer file.Close()
+
+	// Check if single-disk file is SSE envelope encrypted
+	var magic [8]byte
+	if n, _ := file.Read(magic[:]); n == 8 && isSSEEncrypted(magic[:]) {
+		_, _ = file.Seek(0, io.SeekStart)
+		packed, _ := io.ReadAll(file)
+		plain, decErr := s.decryptSSE(packed)
+		if decErr != nil {
+			writeS3Error(w, http.StatusInternalServerError, "InternalError", decErr.Error())
+			return
+		}
+		w.Header().Set("x-amz-server-side-encryption", "AES256")
+		w.Header().Set("Content-Length", strconv.Itoa(len(plain)))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(plain)
+		return
+	}
+	_, _ = file.Seek(0, io.SeekStart)
 
 	// Parse HTTP Range header (e.g. bytes=0-1048576)
 	rangeHeader := r.Header.Get("Range")
@@ -707,6 +772,9 @@ func (s *S3Engine) handleDeleteObject(w http.ResponseWriter, r *http.Request, bu
 		_ = s.store.DeleteObject(bucketName, objectKey)
 		if bucket != nil && bucket.WebhookURL != "" {
 			go s.emitWebhook(bucket.WebhookURL, "s3:ObjectRemoved:Delete", bucketName, objectKey, 0, "")
+		}
+		if r.Header.Get("X-Orbit-Replicated") != "1" {
+			go s.replicateDeleteToPeers(bucketName, objectKey)
 		}
 	}
 	w.WriteHeader(http.StatusNoContent)
