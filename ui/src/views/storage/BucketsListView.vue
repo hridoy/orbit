@@ -168,6 +168,38 @@
             </div>
           </div>
         </CfCard>
+
+        <CfCard title="Upcoming Features (Roadmap)" subtitle="High-scale & enterprise capabilities planned">
+          <div class="cf-storage-kv">
+            <div class="cf-roadmap-item">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 0.85rem;">Extreme Petabyte / High-IOPS (4KB)</strong>
+                <CfBadge variant="neutral" size="sm">Upcoming</CfBadge>
+              </div>
+              <span style="font-size: 0.78rem; color: #71717a;">
+                Zero-copy I/O (`io_uring`) & slab-packed small-object index for sustained high-IOPS & petabyte scale.
+              </span>
+            </div>
+            <div class="cf-roadmap-item">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 0.85rem;">Cross-Node Distributed Erasure</strong>
+                <CfBadge variant="neutral" size="sm">Upcoming</CfBadge>
+              </div>
+              <span style="font-size: 0.78rem; color: #71717a;">
+                Stretch RS (4+2) parity shards directly across remote Orbit cluster nodes.
+              </span>
+            </div>
+            <div class="cf-roadmap-item">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 0.85rem;">OIDC & Kafka Event Bus</strong>
+                <CfBadge variant="neutral" size="sm">Upcoming</CfBadge>
+              </div>
+              <span style="font-size: 0.78rem; color: #71717a;">
+                STS federated OIDC credentials and high-throughput Kafka/NATS bucket notifications.
+              </span>
+            </div>
+          </div>
+        </CfCard>
       </div>
     </div>
 
@@ -499,6 +531,19 @@ onMounted(fetchAll)
   border-radius: 6px;
   background: #ffffff;
   font-size: 0.875rem;
+}
+
+.cf-roadmap-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid #f4f4f5;
+}
+
+.cf-roadmap-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .cf-storage-kv-row {
