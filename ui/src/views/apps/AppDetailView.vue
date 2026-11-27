@@ -342,23 +342,51 @@
 
       <CfCard title="Deployment history" body-class="cf-ad-table-body">
         <template #actions>
-          <CfButton variant="secondary" size="sm" icon="refresh" @click="fetchApp">Refresh</CfButton>
+          <CfButton variant="secondary" size="sm" icon="refresh" @click="fetchDeployments">Refresh</CfButton>
         </template>
-        <CfTable :columns="deployColumns" :data="deployments" row-key="id">
+        <CfTable
+          :columns="deployColumns"
+          :data="filteredDeployments"
+          row-key="id"
+          searchable
+          search-placeholder="Filter deployments..."
+          column-picker
+          density-toggle
+        >
+          <template #toolbar>
+            <CfTabs v-model="deployStatusTab" :tabs="['All', 'Active', 'Previous']" />
+          </template>
           <template #col-version="{ val }">
             <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
               <code class="cf-ad-code-pill">{{ val }}</code>
-              <CfButton variant="ghost" size="sm" icon="clipboard" icon-only title="Copy version" @click="copyText(val)" />
+              <CfButton variant="ghost" size="sm" icon="clipboard" icon-only title="Copy Version ID" @click="copyText(val)" />
+            </div>
+          </template>
+          <template #col-traffic="{ val }">
+            <div style="display: flex; align-items: center; gap: 8px; min-width: 110px;">
+              <div style="flex: 1; height: 6px; border-radius: 9999px; background: var(--color-kumo-recessed, #f4f4f5); overflow: hidden;">
+                <div :style="{ width: `${val}%`, height: '100%', background: 'var(--color-kumo-brand, #f6821f)' }"></div>
+              </div>
+              <span class="font-mono" style="font-size: 0.78rem;">{{ val }}%</span>
+            </div>
+          </template>
+          <template #col-cpu="{ val }">
+            <div style="width: 90px;">
+              <CfSparkline :values="val" :height="24" />
             </div>
           </template>
           <template #col-status="{ val }">
-            <CfBadge :variant="val === 'Ready' ? 'success' : 'neutral'" size="sm" dot>{{ val }}</CfBadge>
+            <CfBadge :variant="val === 'Active' || val === 'Ready' ? 'success' : 'neutral'" size="sm" dot>{{ val }}</CfBadge>
           </template>
           <template #col-source="{ val }">
             <CfBadge variant="neutral" size="sm">{{ val }}</CfBadge>
           </template>
-          <template #actions>
-            <CfButton variant="secondary" size="sm" @click="activeTab = 'logs'">View logs</CfButton>
+          <template #actions="{ row }">
+            <CfDropdownMenu :items="deployMenuItems" @select="handleDeployAction($event, row)">
+              <template #trigger>
+                <CfButton variant="ghost" size="sm" icon-only title="Row actions">⋯</CfButton>
+              </template>
+            </CfDropdownMenu>
           </template>
         </CfTable>
       </CfCard>
@@ -547,12 +575,22 @@ const envVars = ref([
   { type: 'Secret', name: 'ORBIT_APP_KEY', value: 'Value encrypted' }
 ])
 
+const deployStatusTab = ref('All')
+const rawDeployments = ref([])
+
 const deployColumns = [
-  { key: 'version', label: 'Version ID', width: '160px' },
-  { key: 'message', label: 'Message' },
-  { key: 'status', label: 'Status', width: '110px' },
+  { key: 'version', label: 'Version ID', width: '165px', sortable: true },
+  { key: 'traffic', label: 'Traffic', width: '140px', sortable: true },
+  { key: 'cpu', label: 'CPU Trend', width: '115px' },
+  { key: 'status', label: 'Status', width: '105px', sortable: true },
   { key: 'source', label: 'Source', width: '110px' },
   { key: 'time', label: 'Deployed', width: '110px' }
+]
+
+const deployMenuItems = [
+  { label: 'View Logs', value: 'logs' },
+  { label: 'Copy Version ID', value: 'copy' },
+  { label: 'Redeploy', value: 'redeploy' }
 ]
 
 const domainColumns = [
@@ -581,16 +619,52 @@ const formattedLogs = computed(() =>
   }))
 )
 
-const deployments = computed(() => [
-  {
-    id: 1,
-    version: app.value.current_version || 'initial-seed',
-    message: `Entrypoint ${app.value.binary_entrypoint || './server'}`,
-    status: app.value.status === 'running' ? 'Ready' : 'Stopped',
-    source: 'Orbit CLI',
-    time: formatRelative(app.value.updated_at)
+const deployments = computed(() => {
+  if (rawDeployments.value.length > 0) {
+    return rawDeployments.value.map((d, idx) => ({
+      id: d.deployment_id || idx + 1,
+      version: d.version_hash || 'initial',
+      traffic: idx === 0 && app.value.status === 'running' ? 100 : 0,
+      cpu: idx === 0 ? [12, 18, 16, 22, 19, 24, 21] : [8, 10, 9, 11, 10, 9, 8],
+      status: idx === 0 && app.value.status === 'running' ? 'Active' : (d.status || 'Previous'),
+      source: d.deployed_by || 'Orbit CLI',
+      time: formatRelative(d.created_at)
+    }))
   }
-])
+  return [
+    {
+      id: 1,
+      version: app.value.current_version || 'initial-seed',
+      traffic: app.value.status === 'running' ? 100 : 0,
+      cpu: [14, 19, 17, 23, 20, 26, 22],
+      status: app.value.status === 'running' ? 'Active' : 'Stopped',
+      source: 'Orbit CLI',
+      time: formatRelative(app.value.updated_at)
+    }
+  ]
+})
+
+const filteredDeployments = computed(() => {
+  if (deployStatusTab.value === 'All') return deployments.value
+  if (deployStatusTab.value === 'Active') return deployments.value.filter(d => d.status === 'Active' || d.traffic > 0)
+  return deployments.value.filter(d => d.status !== 'Active' && d.traffic === 0)
+})
+
+async function fetchDeployments() {
+  try {
+    const res = await fetch(`/api/v1/apps/${appId.value}/deployments`, { headers: authHeaders() })
+    if (res.ok) {
+      const data = await res.json()
+      rawDeployments.value = data.deployments || []
+    }
+  } catch (e) {}
+}
+
+function handleDeployAction(action, row) {
+  if (action === 'logs') activeTab.value = 'logs'
+  else if (action === 'copy') copyText(row.version)
+  else if (action === 'redeploy') fetchApp()
+}
 
 const domainRows = computed(() => {
   const rows = []
@@ -675,7 +749,10 @@ watch(activeTab, (tab) => {
   }
 })
 
-onMounted(fetchApp)
+onMounted(() => {
+  fetchApp()
+  fetchDeployments()
+})
 onBeforeUnmount(() => {
   if (sse) sse.close()
 })

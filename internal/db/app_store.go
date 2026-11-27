@@ -169,3 +169,31 @@ func (s *AppStore) RecordDeployment(d *AppDeployment) error {
 	)
 	return err
 }
+
+func (s *AppStore) ListDeployments(appID string, limit int) ([]*AppDeployment, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	query := `
+	SELECT deployment_id, app_id, version_hash, port_used, status, deployed_by, duration_ms, logs, created_at
+	FROM app_deployments
+	WHERE app_id = ?
+	ORDER BY created_at DESC
+	LIMIT ?;
+	`
+	rows, err := s.db.Query(query, appID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*AppDeployment
+	for rows.Next() {
+		var d AppDeployment
+		if err := rows.Scan(&d.DeploymentID, &d.AppID, &d.VersionHash, &d.PortUsed, &d.Status, &d.DeployedBy, &d.DurationMS, &d.Logs, &d.CreatedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, &d)
+	}
+	return list, nil
+}

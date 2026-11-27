@@ -47,6 +47,7 @@ func (h *ComputeHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/apps", h.handleCreateApp)
 	mux.HandleFunc("GET /api/v1/apps", h.handleListApps)
 	mux.HandleFunc("GET /api/v1/apps/{id}", h.handleGetApp)
+	mux.HandleFunc("GET /api/v1/apps/{id}/deployments", h.handleListDeployments)
 	mux.HandleFunc("POST /api/v1/apps/{id}/deploy/diff", h.handleDeployDiff)
 	mux.HandleFunc("POST /api/v1/apps/{id}/deploy/upload", h.handleDeployUpload)
 	mux.HandleFunc("POST /api/v1/apps/{id}/deploy/activate", h.handleDeployActivate)
@@ -124,6 +125,19 @@ func (h *ComputeHandler) handleListApps(w http.ResponseWriter, r *http.Request) 
 		apps = []*db.App{}
 	}
 	writeJSON(w, http.StatusOK, apps)
+}
+
+func (h *ComputeHandler) handleListDeployments(w http.ResponseWriter, r *http.Request) {
+	appID := r.PathValue("id")
+	list, err := h.appStore.ListDeployments(appID, 50)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if list == nil {
+		list = []*db.AppDeployment{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deployments": list})
 }
 
 func (h *ComputeHandler) handleGetApp(w http.ResponseWriter, r *http.Request) {
