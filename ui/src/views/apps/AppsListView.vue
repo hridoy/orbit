@@ -118,11 +118,12 @@
       />
 
       <div v-else class="cf-wp-card-stream">
-        <router-link
+        <div
           v-for="app in filteredApps"
           :key="app.app_id"
-          :to="`/apps/${app.app_id}`"
           class="cf-wp-app-card-two-tier"
+          style="cursor: pointer;"
+          @click="router.push(`/apps/${app.app_id}`)"
         >
           <!-- Tier 1: Main Header -->
           <div class="cf-wp-card-tier-main">
@@ -154,7 +155,7 @@
               </div>
             </div>
 
-            <div class="cf-wp-card-right" @click.prevent.stop>
+            <div class="cf-wp-card-right" @click.stop>
               <div class="cf-wp-repo-pill">
                 <CfIcon name="server" size="12" />
                 <span>{{ app.app_id }}</span>
@@ -188,7 +189,7 @@
               </div>
             </div>
           </div>
-        </router-link>
+        </div>
       </div>
 
       <!-- 5. PAGINATION ROW -->
