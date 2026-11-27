@@ -399,9 +399,9 @@
               <td style="width: 120px; color: #71717a; font-size: 0.85rem;">by {{ row.author }}</td>
               <td style="width: 100px; color: #71717a; font-size: 0.85rem; text-align: right; white-space: nowrap;">{{ row.time }}</td>
               <td style="width: 48px; text-align: right;">
-                <CfDropdownMenu :items="deployMenuItems" @select="handleDeployAction($event, row)">
+                <CfDropdownMenu :items="deployMenuItems" align="right" @select="handleDeployAction($event, row)">
                   <template #trigger>
-                    <CfButton variant="ghost" size="sm" icon-only title="More options">⋯</CfButton>
+                    <button type="button" class="cf-deploy-more-btn" title="More options">⋯</button>
                   </template>
                 </CfDropdownMenu>
               </td>
@@ -688,7 +688,8 @@ async function fetchDeployments() {
   } catch (e) {}
 }
 
-function handleDeployAction(action, row) {
+function handleDeployAction(item, row) {
+  const action = item?.value || item
   if (action === 'logs') activeTab.value = 'logs'
   else if (action === 'copy') copyText(row.version)
   else if (action === 'redeploy') fetchApp()
@@ -1139,15 +1140,15 @@ onBeforeUnmount(() => {
 
 .cf-deploy-active-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(110px, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1rem;
   padding: 1rem 1.15rem;
   align-items: start;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .cf-deploy-active-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -1229,6 +1230,26 @@ onBeforeUnmount(() => {
 
 .cf-deploy-dot.ready {
   background: #10b981;
+}
+
+.cf-deploy-more-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #52525b;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cf-deploy-more-btn:hover {
+  background: #f4f4f5;
+  color: #18181b;
 }
 
 .app-log-terminal {
