@@ -17,6 +17,7 @@
             {{ bucket.is_public ? 'Public Read' : 'Private' }}
           </CfBadge>
           <CfBadge v-if="bucket.versioning_enabled" variant="info" size="sm">Versioning</CfBadge>
+          <CfBadge v-if="bucket.erasure_enabled" variant="success" size="sm">RS 4+2 Erasure</CfBadge>
           <CfBadge v-if="bucket.object_lock_enabled" variant="danger" size="sm">
             WORM Lock ({{ bucket.retention_days }}d)
           </CfBadge>
@@ -58,7 +59,7 @@
         role="tab"
         class="cf-tab-btn"
         :class="{ active: activeTab === 'metrics' }"
-        @click="activeTab = 'metrics'"
+        @click="activeTab = 'metrics'; if (bucket.erasure_enabled) fetchErasureHealth()"
       >
         Metrics & Quota
       </button>
@@ -226,9 +227,35 @@
             <div class="cf-kv-row"><span>Archived Versions</span><strong>{{ versionCount }}</strong></div>
             <div class="cf-kv-row"><span>Versioning</span><strong>{{ bucket.versioning_enabled ? 'Enabled' : 'Disabled' }}</strong></div>
             <div class="cf-kv-row"><span>WORM Object Lock</span><strong>{{ bucket.object_lock_enabled ? `Enabled (${bucket.retention_days}d)` : 'Disabled' }}</strong></div>
+            <div class="cf-kv-row"><span>Erasure Coding</span><strong>{{ bucket.erasure_enabled ? 'RS (4 Data + 2 Parity)' : 'Single Copy' }}</strong></div>
           </div>
         </CfCard>
       </div>
+
+      <CfCard
+        v-if="bucket.erasure_enabled && erasureHealth"
+        title="Multi-Drive Erasure Coding Health (Reed-Solomon 4+2)"
+        subtitle="Tolerates up to 2 simultaneous drive failures with automatic shard healing"
+      >
+        <template #actions>
+          <CfButton variant="secondary" size="sm" @click="healErasureShards">
+            Verify & Heal Shards
+          </CfButton>
+        </template>
+        <div class="cf-drives-grid">
+          <div v-for="d in erasureHealth.drives" :key="d.drive_index" class="cf-drive-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong>Drive {{ d.drive_index }}</strong>
+              <CfBadge :variant="d.missing_shards + d.corrupt_shards === 0 ? 'success' : 'warning'" size="sm">
+                {{ d.missing_shards + d.corrupt_shards === 0 ? 'Healthy' : 'Degraded' }}
+              </CfBadge>
+            </div>
+            <div style="font-size: 0.78rem; color: #71717a; margin-top: 0.35rem;">
+              Shards: {{ d.healthy_shards }} OK · {{ d.missing_shards }} missing · {{ d.corrupt_shards }} corrupt
+            </div>
+          </div>
+        </div>
+      </CfCard>
     </div>
 
     <!-- TAB 4: SETTINGS & ADVANCED FEATURES -->
@@ -244,6 +271,14 @@
         </template>
 
         <div class="cf-settings-stack">
+          <label class="cf-toggle-row">
+            <div>
+              <div class="cf-toggle-title">Reed-Solomon Erasure Coding (4 Data + 2 Parity)</div>
+              <div class="cf-toggle-desc">Stripe new objects across 6 storage drives with GF(2^8) parity. Recovers & auto-heals from up to 2 drive failures.</div>
+            </div>
+            <input type="checkbox" v-model="settingsForm.erasure_enabled" class="cf-switch" />
+          </label>
+
           <label class="cf-toggle-row">
             <div>
               <div class="cf-toggle-title">Object Versioning</div>
@@ -398,10 +433,12 @@ const bucket = ref({
   used_bytes: 0,
   versioning_enabled: false,
   object_lock_enabled: false,
+  erasure_enabled: false,
   retention_days: 0,
   lifecycle_days: 0,
   webhook_url: ''
 })
+const erasureHealth = ref(null)
 const region = ref('us-east-1')
 const objectCount = ref(0)
 const versionCount = ref(0)
@@ -417,6 +454,7 @@ const settingsForm = ref({
   is_public: false,
   versioning_enabled: false,
   object_lock_enabled: false,
+  erasure_enabled: false,
   retention_days: 7,
   lifecycle_days: 0,
   quota_bytes: 10737418240,
@@ -510,10 +548,14 @@ async function loadAll() {
         is_public: !!data.bucket.is_public,
         versioning_enabled: !!data.bucket.versioning_enabled,
         object_lock_enabled: !!data.bucket.object_lock_enabled,
+        erasure_enabled: !!data.bucket.erasure_enabled,
         retention_days: data.bucket.retention_days || 7,
         lifecycle_days: data.bucket.lifecycle_days || 0,
         quota_bytes: data.bucket.quota_bytes ?? 10737418240,
         webhook_url: data.bucket.webhook_url || ''
+      }
+      if (data.bucket.erasure_enabled) {
+        fetchErasureHealth()
       }
     }
     if (listRes.ok) {
@@ -542,6 +584,7 @@ function viewKeyVersions(key) {
 }
 
 function enableAllAdvanced() {
+  settingsForm.value.erasure_enabled = true
   settingsForm.value.versioning_enabled = true
   settingsForm.value.object_lock_enabled = true
   if (!settingsForm.value.retention_days || settingsForm.value.retention_days < 1) {
@@ -549,6 +592,26 @@ function enableAllAdvanced() {
   }
   if (!settingsForm.value.lifecycle_days || settingsForm.value.lifecycle_days < 1) {
     settingsForm.value.lifecycle_days = 30
+  }
+}
+
+async function fetchErasureHealth() {
+  const res = await apiFetch(`/api/v1/storage/buckets/${encodeURIComponent(bucketName.value)}/erasure/health`)
+  if (res.ok) {
+    erasureHealth.value = await res.json()
+  }
+}
+
+async function healErasureShards() {
+  actionError.value = ''
+  actionSuccess.value = ''
+  const res = await apiFetch(`/api/v1/storage/buckets/${encodeURIComponent(bucketName.value)}/erasure/heal`, {
+    method: 'POST'
+  })
+  if (res.ok) {
+    const data = await res.json()
+    actionSuccess.value = `Erasure heal complete: ${data.healed_shards} shard(s) repaired.`
+    await fetchErasureHealth()
   }
 }
 
@@ -839,5 +902,18 @@ onMounted(loadAll)
   border-radius: 6px;
   background: #ffffff;
   font-size: 0.875rem;
+}
+
+.cf-drives-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.85rem;
+}
+
+.cf-drive-card {
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  background: #fafafa;
 }
 </style>

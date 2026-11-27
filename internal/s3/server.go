@@ -95,7 +95,7 @@ func (s *S3Engine) BucketDir(bucketID string) string {
 
 // authenticate reports whether the request may proceed. The returned string is the
 // payload SHA-256 the body must match ("" when no body check applies).
-func (s *S3Engine) authenticate(r *http.Request, isPublicBucket bool) (string, bool) {
+func (s *S3Engine) authenticate(r *http.Request, isPublicBucket bool, bucketName, objectKey string) (string, bool) {
 	// 1. If public bucket and safe read method (GET/HEAD), allow without auth
 	if isPublicBucket && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
 		return "", true
@@ -115,7 +115,28 @@ func (s *S3Engine) authenticate(r *http.Request, isPublicBucket bool) (string, b
 		}
 	}
 
-	// 3. AWS SigV4 (header or presigned) with the dedicated S3 key pair
+	// 3. AWS SigV4 (root S3 keypair OR scoped multi-tenant IAM key)
+	ak := ExtractSigV4AccessKey(r)
+	if ak != "" && s.sigv4 != nil && ak != s.sigv4.AccessKey {
+		iamKey, err := s.store.GetIAMKeyByAccessKey(ak)
+		if err != nil || iamKey == nil {
+			return "", false
+		}
+		secret, err := s.unsealTenantSecret(iamKey.SecretKeyEnc)
+		if err != nil {
+			return "", false
+		}
+		tenantAuth := NewSigV4Auth(iamKey.AccessKey, secret, "us-east-1")
+		payloadHash, err := tenantAuth.VerifyRequest(r)
+		if err != nil {
+			return "", false
+		}
+		if !checkIAMPolicy(iamKey, r.Method, bucketName, objectKey) {
+			return "", false
+		}
+		return payloadHash, true
+	}
+
 	if s.sigv4 == nil {
 		return "", false
 	}
@@ -154,7 +175,7 @@ func (s *S3Engine) handleS3Dispatch(w http.ResponseWriter, r *http.Request) {
 	bucket, _ := s.store.GetBucket(bucketName)
 	isPublic := bucket != nil && bucket.IsPublic
 
-	payloadHash, ok := s.authenticate(r, isPublic)
+	payloadHash, ok := s.authenticate(r, isPublic, bucketName, objectKey)
 	if !ok {
 		writeS3Error(w, http.StatusForbidden, "AccessDenied", "Access Denied")
 		return
@@ -524,9 +545,25 @@ func (s *S3Engine) handlePutObject(w http.ResponseWriter, r *http.Request, bucke
 		_ = s.archiveObjectVersion(bucketName, existing)
 	}
 
-	if err := os.Rename(tmpFile.Name(), dstPath); err != nil {
-		writeS3Error(w, http.StatusInternalServerError, "InternalError", err.Error())
-		return
+	objID := fmt.Sprintf("obj_%s", md5Hex)
+	diskRelPath := cleanKey
+
+	if bucket != nil && bucket.ErasureEnabled {
+		rawBytes, readErr := os.ReadFile(tmpFile.Name())
+		if readErr != nil {
+			writeS3Error(w, http.StatusInternalServerError, "InternalError", readErr.Error())
+			return
+		}
+		if ecErr := s.writeErasureObject(bucketName, objID, rawBytes); ecErr != nil {
+			writeS3Error(w, http.StatusInternalServerError, "InternalError", ecErr.Error())
+			return
+		}
+		diskRelPath = "erasure://" + objID
+	} else {
+		if err := os.Rename(tmpFile.Name(), dstPath); err != nil {
+			writeS3Error(w, http.StatusInternalServerError, "InternalError", err.Error())
+			return
+		}
 	}
 
 	contentType := normalizeContentType(r.Header.Get("Content-Type"))
@@ -541,13 +578,13 @@ func (s *S3Engine) handlePutObject(w http.ResponseWriter, r *http.Request, bucke
 	}
 
 	obj := &db.StorageObject{
-		ObjectID:    fmt.Sprintf("obj_%s", md5Hex),
+		ObjectID:    objID,
 		BucketID:    bucketName,
 		ObjectKey:   objectKey,
 		SizeBytes:   written,
 		ContentType: contentType,
 		ETag:        md5Hex,
-		DiskRelPath: cleanKey,
+		DiskRelPath: diskRelPath,
 		RetainUntil: retainUntil,
 	}
 
@@ -571,6 +608,22 @@ func (s *S3Engine) handleGetObject(w http.ResponseWriter, r *http.Request, bucke
 		return
 	}
 
+	w.Header().Set("ETag", fmt.Sprintf("\"%s\"", obj.ETag))
+	setObjectHeaders(w, obj)
+	w.Header().Set("Accept-Ranges", "bytes")
+
+	if strings.HasPrefix(obj.DiskRelPath, "erasure://") {
+		data, _, ecErr := s.readErasureObject(bucketName, obj.ObjectID)
+		if ecErr != nil {
+			writeS3Error(w, http.StatusInternalServerError, "InternalError", "Erasure reconstruction failed: "+ecErr.Error())
+			return
+		}
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+		return
+	}
+
 	filePath := filepath.Join(s.BucketDir(bucketName), obj.DiskRelPath)
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -578,10 +631,6 @@ func (s *S3Engine) handleGetObject(w http.ResponseWriter, r *http.Request, bucke
 		return
 	}
 	defer file.Close()
-
-	w.Header().Set("ETag", fmt.Sprintf("\"%s\"", obj.ETag))
-	setObjectHeaders(w, obj)
-	w.Header().Set("Accept-Ranges", "bytes")
 
 	// Parse HTTP Range header (e.g. bytes=0-1048576)
 	rangeHeader := r.Header.Get("Range")
@@ -649,8 +698,12 @@ func (s *S3Engine) handleDeleteObject(w http.ResponseWriter, r *http.Request, bu
 			_ = s.archiveObjectVersion(bucketName, obj)
 			s.recordDeleteMarker(bucketName, objectKey)
 		}
-		filePath := filepath.Join(s.BucketDir(bucketName), obj.DiskRelPath)
-		_ = os.Remove(filePath)
+		if strings.HasPrefix(obj.DiskRelPath, "erasure://") {
+			s.deleteErasureObject(bucketName, obj.ObjectID)
+		} else {
+			filePath := filepath.Join(s.BucketDir(bucketName), obj.DiskRelPath)
+			_ = os.Remove(filePath)
+		}
 		_ = s.store.DeleteObject(bucketName, objectKey)
 		if bucket != nil && bucket.WebhookURL != "" {
 			go s.emitWebhook(bucket.WebhookURL, "s3:ObjectRemoved:Delete", bucketName, objectKey, 0, "")

@@ -96,8 +96,21 @@ CREATE TABLE IF NOT EXISTS storage_buckets (
     retention_days      INTEGER NOT NULL DEFAULT 0,
     lifecycle_days      INTEGER NOT NULL DEFAULT 0,
     webhook_url         TEXT NOT NULL DEFAULT '',
+    erasure_enabled     INTEGER NOT NULL DEFAULT 0,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS storage_iam_keys (
+    key_id              TEXT PRIMARY KEY,
+    access_key          TEXT NOT NULL UNIQUE,
+    secret_key_enc      TEXT NOT NULL,
+    label               TEXT NOT NULL,
+    bucket_scope        TEXT NOT NULL DEFAULT '*',
+    prefix_scope        TEXT NOT NULL DEFAULT '',
+    permissions         TEXT NOT NULL DEFAULT 'read',
+    active              INTEGER NOT NULL DEFAULT 1,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS storage_objects (

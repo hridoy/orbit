@@ -23,6 +23,7 @@ func (s *S3Engine) registerAdvancedRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/v1/storage/buckets/{name}/versions/{versionId}", s.handleDeleteVersion)
 	mux.HandleFunc("POST /api/v1/storage/buckets/{name}/presign", s.handlePresignObject)
 	mux.HandleFunc("POST /api/v1/storage/buckets/{name}/lifecycle/run", s.handleRunLifecycle)
+	s.registerIAMAndErasureRoutes(mux)
 }
 
 func requireAdmin(w http.ResponseWriter, r *http.Request) bool {
@@ -68,6 +69,7 @@ type bucketSettingsReq struct {
 	IsPublic          bool   `json:"is_public"`
 	VersioningEnabled bool   `json:"versioning_enabled"`
 	ObjectLockEnabled bool   `json:"object_lock_enabled"`
+	ErasureEnabled    bool   `json:"erasure_enabled"`
 	RetentionDays     int    `json:"retention_days"`
 	LifecycleDays     int    `json:"lifecycle_days"`
 	QuotaBytes        int64  `json:"quota_bytes"`
@@ -106,6 +108,7 @@ func (s *S3Engine) handleUpdateBucketSettings(w http.ResponseWriter, r *http.Req
 		req.IsPublic,
 		req.VersioningEnabled,
 		req.ObjectLockEnabled,
+		req.ErasureEnabled,
 		req.RetentionDays,
 		req.LifecycleDays,
 		req.QuotaBytes,

@@ -69,6 +69,43 @@
             </template>
           </CfTable>
         </CfCard>
+
+        <!-- Multi-Tenant IAM Access Keys & Scoped Policies -->
+        <CfCard
+          title="Tenant IAM Access Keys & Policies"
+          subtitle="Issue scoped S3 credentials restricted by bucket, key prefix, and read/write/delete permissions"
+          style="margin-top: 1.25rem;"
+        >
+          <template #actions>
+            <CfButton variant="secondary" size="sm" icon="plus" @click="showCreateIamModal = true">
+              Create IAM Key
+            </CfButton>
+          </template>
+
+          <CfEmptyState
+            v-if="!iamKeys.length"
+            title="No tenant IAM keys issued"
+            description="Create scoped S3 keys for individual apps or CI pipelines instead of sharing the root S3 keypair."
+            action-text="Create IAM Key"
+            action-icon="plus"
+            @action="showCreateIamModal = true"
+          />
+
+          <CfTable v-else :columns="iamColumns" :data="iamKeys" row-key="key_id">
+            <template #col-access_key="{ val }">
+              <code style="font-size: 0.82rem;">{{ val }}</code>
+            </template>
+            <template #col-bucket_scope="{ row }">
+              <span><code>{{ row.bucket_scope }}</code><span v-if="row.prefix_scope">/{{ row.prefix_scope }}*</span></span>
+            </template>
+            <template #col-permissions="{ val }">
+              <CfBadge variant="info" size="sm">{{ val }}</CfBadge>
+            </template>
+            <template #actions="{ row }">
+              <CfButton variant="danger-outline" size="sm" @click="revokeIamKey(row.key_id)">Revoke</CfButton>
+            </template>
+          </CfTable>
+        </CfCard>
       </div>
 
       <!-- Right: S3 API Credentials & Endpoint (Using CfCopyField from cloudflare-ui) -->
@@ -125,6 +162,39 @@
       danger
       @confirm="confirmDelete"
     />
+
+    <!-- Create Tenant IAM Key Modal -->
+    <CfModal v-model="showCreateIamModal" title="Create Scoped IAM Key" size="sm">
+      <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+        <CfInput v-model="iamForm.label" label="Key Label" placeholder="e.g. backups-worker" required />
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem;">Bucket Scope</label>
+          <select v-model="iamForm.bucket_scope" class="cf-iam-select">
+            <option value="*">All Buckets (*)</option>
+            <option v-for="b in buckets" :key="b.name" :value="b.name">{{ b.name }}</option>
+          </select>
+        </div>
+        <CfInput v-model="iamForm.prefix_scope" label="Prefix Scope (optional)" placeholder="e.g. prod/" />
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem;">Permissions</label>
+          <select v-model="iamForm.permissions" class="cf-iam-select">
+            <option value="read">Read Only (GET / HEAD)</option>
+            <option value="read,write">Read + Write (GET / PUT)</option>
+            <option value="read,write,delete">Read + Write + Delete</option>
+            <option value="admin">Full Admin</option>
+          </select>
+        </div>
+        <div v-if="createdIamSecret" style="display: flex; flex-direction: column; gap: 0.65rem; padding-top: 0.5rem; border-top: 1px solid #e4e4e7;">
+          <CfAlert variant="success" title="IAM Key Created">Copy the Secret Key now — it will not be shown again.</CfAlert>
+          <CfCopyField label="Access Key ID" :value="createdIamSecret.access_key" />
+          <CfCopyField label="Secret Key" :value="createdIamSecret.secret_key" secret />
+        </div>
+      </div>
+      <template #footer>
+        <CfButton variant="outline" @click="closeIamModal">Close</CfButton>
+        <CfButton v-if="!createdIamSecret" variant="primary" :loading="creatingIam" @click="createIamKey">Issue Key</CfButton>
+      </template>
+    </CfModal>
   </div>
 </template>
 
@@ -143,6 +213,19 @@ const createError = ref('')
 
 const showDeleteDialog = ref(false)
 const bucketToDelete = ref('')
+
+const iamKeys = ref([])
+const showCreateIamModal = ref(false)
+const creatingIam = ref(false)
+const createdIamSecret = ref(null)
+const iamForm = ref({ label: '', bucket_scope: '*', prefix_scope: '', permissions: 'read' })
+
+const iamColumns = [
+  { key: 'label', label: 'Label' },
+  { key: 'access_key', label: 'Access Key' },
+  { key: 'bucket_scope', label: 'Scope' },
+  { key: 'permissions', label: 'Permissions', width: '140px' }
+]
 
 const bucketColumns = [
   { key: 'name', label: 'Bucket Name' },
@@ -177,9 +260,10 @@ function parseS3BucketsXml(xmlText) {
 async function fetchAll() {
   loading.value = true
   try {
-    const [s3Res, credRes] = await Promise.all([
+    const [s3Res, credRes, iamRes] = await Promise.all([
       apiFetch('/s3/'),
-      apiFetch('/api/v1/storage/credentials')
+      apiFetch('/api/v1/storage/credentials'),
+      apiFetch('/api/v1/storage/iam-keys')
     ])
     if (credRes.ok) {
       creds.value = await credRes.json()
@@ -187,6 +271,10 @@ async function fetchAll() {
     if (s3Res.ok) {
       const xml = await s3Res.text()
       buckets.value = parseS3BucketsXml(xml)
+    }
+    if (iamRes.ok) {
+      const data = await iamRes.json()
+      iamKeys.value = data.keys || []
     }
   } catch (e) {
     console.warn('Failed to fetch S3 storage:', e)
@@ -232,6 +320,35 @@ async function confirmDelete() {
   } catch (e) {}
 }
 
+async function createIamKey() {
+  creatingIam.value = true
+  try {
+    const res = await apiFetch('/api/v1/storage/iam-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(iamForm.value)
+    })
+    if (res.ok) {
+      const data = await res.json()
+      createdIamSecret.value = { access_key: data.key.access_key, secret_key: data.secret_key }
+      await fetchAll()
+    }
+  } finally {
+    creatingIam.value = false
+  }
+}
+
+async function revokeIamKey(keyId) {
+  const res = await apiFetch(`/api/v1/storage/iam-keys/${encodeURIComponent(keyId)}`, { method: 'DELETE' })
+  if (res.ok) await fetchAll()
+}
+
+function closeIamModal() {
+  showCreateIamModal.value = false
+  createdIamSecret.value = null
+  iamForm.value = { label: '', bucket_scope: '*', prefix_scope: '', permissions: 'read' }
+}
+
 onMounted(fetchAll)
 </script>
 
@@ -269,6 +386,15 @@ onMounted(fetchAll)
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.cf-iam-select {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 0.875rem;
 }
 
 .cf-storage-kv-row {

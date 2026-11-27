@@ -17,8 +17,21 @@ type StorageBucket struct {
 	RetentionDays     int       `json:"retention_days"`
 	LifecycleDays     int       `json:"lifecycle_days"`
 	WebhookURL        string    `json:"webhook_url"`
+	ErasureEnabled    bool      `json:"erasure_enabled"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type StorageIAMKey struct {
+	KeyID        string    `json:"key_id"`
+	AccessKey    string    `json:"access_key"`
+	SecretKeyEnc string    `json:"-"`
+	Label        string    `json:"label"`
+	BucketScope  string    `json:"bucket_scope"`
+	PrefixScope  string    `json:"prefix_scope"`
+	Permissions  string    `json:"permissions"`
+	Active       bool      `json:"active"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type StorageObject struct {
@@ -76,16 +89,16 @@ func (s *StorageStore) DeleteBucket(bucketID string) error {
 func (s *StorageStore) GetBucket(bucketID string) (*StorageBucket, error) {
 	query := `
 	SELECT bucket_id, owner_id, is_public, quota_bytes, used_bytes,
-	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url,
+	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url, erasure_enabled,
 	       created_at, updated_at
 	FROM storage_buckets WHERE bucket_id = ?;
 	`
 	row := s.db.QueryRow(query, bucketID)
 	var b StorageBucket
-	var isPublicInt, versioningInt, objectLockInt int
+	var isPublicInt, versioningInt, objectLockInt, erasureInt int
 	err := row.Scan(
 		&b.BucketID, &b.OwnerID, &isPublicInt, &b.QuotaBytes, &b.UsedBytes,
-		&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL,
+		&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL, &erasureInt,
 		&b.CreatedAt, &b.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -97,13 +110,14 @@ func (s *StorageStore) GetBucket(bucketID string) (*StorageBucket, error) {
 	b.IsPublic = isPublicInt == 1
 	b.VersioningEnabled = versioningInt == 1
 	b.ObjectLockEnabled = objectLockInt == 1
+	b.ErasureEnabled = erasureInt == 1
 	return &b, nil
 }
 
 func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 	query := `
 	SELECT bucket_id, owner_id, is_public, quota_bytes, used_bytes,
-	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url,
+	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url, erasure_enabled,
 	       created_at, updated_at
 	FROM storage_buckets ORDER BY created_at DESC;
 	`
@@ -116,10 +130,10 @@ func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 	var buckets []*StorageBucket
 	for rows.Next() {
 		var b StorageBucket
-		var isPublicInt, versioningInt, objectLockInt int
+		var isPublicInt, versioningInt, objectLockInt, erasureInt int
 		if err := rows.Scan(
 			&b.BucketID, &b.OwnerID, &isPublicInt, &b.QuotaBytes, &b.UsedBytes,
-			&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL,
+			&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL, &erasureInt,
 			&b.CreatedAt, &b.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -127,6 +141,7 @@ func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 		b.IsPublic = isPublicInt == 1
 		b.VersioningEnabled = versioningInt == 1
 		b.ObjectLockEnabled = objectLockInt == 1
+		b.ErasureEnabled = erasureInt == 1
 		buckets = append(buckets, &b)
 	}
 	return buckets, nil
@@ -134,7 +149,7 @@ func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 
 func (s *StorageStore) UpdateBucketSettings(
 	bucketID string,
-	isPublic, versioning, objectLock bool,
+	isPublic, versioning, objectLock, erasure bool,
 	retentionDays, lifecycleDays int,
 	quotaBytes int64,
 	webhookURL string,
@@ -147,13 +162,13 @@ func (s *StorageStore) UpdateBucketSettings(
 	}
 	query := `
 	UPDATE storage_buckets
-	SET is_public = ?, versioning_enabled = ?, object_lock_enabled = ?,
+	SET is_public = ?, versioning_enabled = ?, object_lock_enabled = ?, erasure_enabled = ?,
 	    retention_days = ?, lifecycle_days = ?, quota_bytes = ?, webhook_url = ?,
 	    updated_at = CURRENT_TIMESTAMP
 	WHERE bucket_id = ?;
 	`
 	_, err := s.db.Exec(query,
-		b2i(isPublic), b2i(versioning), b2i(objectLock),
+		b2i(isPublic), b2i(versioning), b2i(objectLock), b2i(erasure),
 		retentionDays, lifecycleDays, quotaBytes, webhookURL, bucketID,
 	)
 	return err
@@ -367,6 +382,69 @@ func (s *StorageStore) ListExpiredObjects(bucketID string, olderThan time.Time) 
 		out = append(out, &o)
 	}
 	return out, nil
+}
+
+func (s *StorageStore) CreateIAMKey(k *StorageIAMKey) error {
+	activeInt := 0
+	if k.Active {
+		activeInt = 1
+	}
+	query := `
+	INSERT INTO storage_iam_keys (
+		key_id, access_key, secret_key_enc, label, bucket_scope, prefix_scope, permissions, active
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+	`
+	_, err := s.db.Exec(query, k.KeyID, k.AccessKey, k.SecretKeyEnc, k.Label, k.BucketScope, k.PrefixScope, k.Permissions, activeInt)
+	return err
+}
+
+func (s *StorageStore) GetIAMKeyByAccessKey(accessKey string) (*StorageIAMKey, error) {
+	query := `
+	SELECT key_id, access_key, secret_key_enc, label, bucket_scope, prefix_scope, permissions, active, created_at
+	FROM storage_iam_keys WHERE access_key = ? AND active = 1;
+	`
+	var k StorageIAMKey
+	var activeInt int
+	err := s.db.QueryRow(query, accessKey).Scan(
+		&k.KeyID, &k.AccessKey, &k.SecretKeyEnc, &k.Label, &k.BucketScope, &k.PrefixScope, &k.Permissions, &activeInt, &k.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	k.Active = activeInt == 1
+	return &k, nil
+}
+
+func (s *StorageStore) ListIAMKeys() ([]*StorageIAMKey, error) {
+	query := `
+	SELECT key_id, access_key, label, bucket_scope, prefix_scope, permissions, active, created_at
+	FROM storage_iam_keys ORDER BY created_at DESC;
+	`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []*StorageIAMKey
+	for rows.Next() {
+		var k StorageIAMKey
+		var activeInt int
+		if err := rows.Scan(&k.KeyID, &k.AccessKey, &k.Label, &k.BucketScope, &k.PrefixScope, &k.Permissions, &activeInt, &k.CreatedAt); err != nil {
+			return nil, err
+		}
+		k.Active = activeInt == 1
+		keys = append(keys, &k)
+	}
+	return keys, nil
+}
+
+func (s *StorageStore) DeleteIAMKey(keyID string) error {
+	_, err := s.db.Exec(`DELETE FROM storage_iam_keys WHERE key_id = ?;`, keyID)
+	return err
 }
 
 type MultipartPartRecord struct {
