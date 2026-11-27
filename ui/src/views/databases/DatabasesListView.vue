@@ -196,7 +196,7 @@ onMounted(() => {
   load()
   timer = setInterval(load, 5000)
 })
-onUnmounted(() => { clearInterval(timer); clearInterval(enginesTimer) })
+onUnmounted(() => { clearInterval(timer) })
 </script>
 
 <style scoped>
