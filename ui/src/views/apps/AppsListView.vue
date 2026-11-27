@@ -54,38 +54,52 @@
         </div>
       </div>
 
-      <!-- 3. UNIFIED JOINED TOOLBAR -->
-      <div class="cf-wp-toolbar-joined">
-        <div class="cf-wp-tb-search">
-          <CfIcon name="cis-magnifying-glass" size="14" style="color: #71717a;" />
+      <!-- 3. UNIFIED JOINED TOOLBAR (Cloudflare Kumo 1:1) -->
+      <div class="cf-wp-toolbar-joined" role="toolbar">
+        <label class="cf-wp-tb-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #71717a; flex-shrink: 0;">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
           <input
             v-model="searchQuery"
             type="text"
             class="cf-wp-tb-input"
             placeholder="Search apps"
           />
-        </div>
+        </label>
 
         <div class="cf-wp-tb-divider"></div>
 
-        <select v-model="filterStatus" class="cf-wp-tb-select">
-          <option value="all">Show all</option>
-          <option value="running">Running</option>
-          <option value="stopped">Stopped</option>
-        </select>
+        <CfDropdownMenu :items="filterMenuItems" align="right" @select="filterStatus = $event.value">
+          <template #trigger>
+            <button type="button" class="cf-wp-tb-combo" role="combobox">
+              <span>{{ filterLabel }}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>
+              </svg>
+            </button>
+          </template>
+        </CfDropdownMenu>
 
         <div class="cf-wp-tb-divider"></div>
 
-        <select v-model="sortBy" class="cf-wp-tb-select">
-          <option value="modified">Sort by: Last modified</option>
-          <option value="name">Sort by: Name</option>
-          <option value="port">Sort by: Port</option>
-        </select>
+        <CfDropdownMenu :items="sortMenuItems" align="right" @select="sortBy = $event.value">
+          <template #trigger>
+            <button type="button" class="cf-wp-tb-combo" role="combobox">
+              <span>{{ sortLabel }}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>
+              </svg>
+            </button>
+          </template>
+        </CfDropdownMenu>
 
         <div class="cf-wp-tb-divider"></div>
 
         <button class="cf-wp-tb-btn" title="Refresh" @click="fetchApps">
-          <CfIcon name="cis-arrow-rotate-clockwise" size="14" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>
+          </svg>
         </button>
       </div>
 
@@ -113,15 +127,14 @@
           <!-- Tier 1: Main Header -->
           <div class="cf-wp-card-tier-main">
             <div class="cf-wp-card-left">
-              <div class="cf-wp-logo-badge">
-                <CfIcon name="edgeworker" size="20" />
+              <div class="cf-wp-logo-bare">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m8 3 4 8 5-5 5 15H2L8 3z"/>
+                </svg>
               </div>
               <div class="cf-wp-identity-col">
                 <div class="cf-wp-name-row">
                   <span class="cf-wp-app-title">{{ app.name || app.app_id }}</span>
-                  <CfBadge :variant="app.status === 'running' ? 'success' : 'neutral'" size="sm" dot>
-                    {{ app.status || 'stopped' }}
-                  </CfBadge>
                 </div>
                 <div class="cf-wp-domain-subrow">
                   <a
@@ -141,12 +154,17 @@
               </div>
             </div>
 
-            <div class="cf-wp-card-right">
+            <div class="cf-wp-card-right" @click.prevent.stop>
               <div class="cf-wp-repo-pill">
                 <CfIcon name="server" size="12" />
                 <span>{{ app.app_id }}</span>
               </div>
               <span class="cf-wp-time-text">{{ formatRelative(app.updated_at) }}</span>
+              <CfDropdownMenu :items="appMenuItems" align="right" @select="handleAppMenu($event, app)">
+                <template #trigger>
+                  <button type="button" class="cf-wp-card-more-btn" title="More options">⋯</button>
+                </template>
+              </CfDropdownMenu>
             </div>
           </div>
 
@@ -254,13 +272,39 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const apps = ref([])
 const nodeInfo = ref({})
 const loading = ref(true)
 const searchQuery = ref('')
 const filterStatus = ref('all')
 const sortBy = ref('modified')
+
+const filterMenuItems = [
+  { label: 'Show all', value: 'all' },
+  { label: 'Running', value: 'running' },
+  { label: 'Stopped', value: 'stopped' }
+]
+const sortMenuItems = [
+  { label: 'Last modified', value: 'modified' },
+  { label: 'Name', value: 'name' },
+  { label: 'Port', value: 'port' }
+]
+const appMenuItems = [
+  { label: 'Open Console', value: 'open' },
+  { label: 'Copy App ID', value: 'copy' }
+]
+
+const filterLabel = computed(() => filterMenuItems.find(i => i.value === filterStatus.value)?.label || 'Show all')
+const sortLabel = computed(() => sortMenuItems.find(i => i.value === sortBy.value)?.label || 'Last modified')
+
+function handleAppMenu(item, app) {
+  const act = item?.value || item
+  if (act === 'open') router.push(`/apps/${app.app_id}`)
+  else if (act === 'copy') copyText(app.app_id, app.app_id)
+}
 const showCreateModal = ref(false)
 const deployMode = ref('create')
 const creating = ref(false)
