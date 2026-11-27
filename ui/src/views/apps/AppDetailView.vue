@@ -317,79 +317,98 @@
     <!-- TAB 3: DEPLOYMENTS                                                -->
     <!-- ================================================================ -->
     <div v-else-if="activeTab === 'deployments'" class="cf-ad-stack">
-      <CfCard title="Active deployment">
-        <div class="cf-ad-active-deploy-grid">
+      <!-- 1. Cloudflare-exact Active Deployment Card (6-column grid + subtle gray header) -->
+      <div class="cf-deploy-active-card">
+        <div class="cf-deploy-active-header">Active deployment</div>
+        <div class="cf-deploy-active-grid">
           <div>
-            <div class="cf-ad-kv-label">Version</div>
-            <code class="cf-ad-code-pill">{{ app.current_version || 'Initial' }}</code>
+            <div class="cf-ad-kv-label">Version ID</div>
+            <div style="display: flex; align-items: center; gap: 0.35rem; font-family: monospace; font-weight: 600; font-size: 0.9rem;">
+              <CfIcon name="layers" size="14" style="color: #71717a;" />
+              <span>{{ shortVersion(app.current_version) }}</span>
+            </div>
           </div>
           <div>
-            <div class="cf-ad-kv-label">Port</div>
-            <div style="font-weight: 600;">:{{ app.active_port || 8001 }}</div>
+            <div class="cf-ad-kv-label">Deployed</div>
+            <div style="font-weight: 500; font-size: 0.9rem;">{{ formatRelative(app.updated_at) }}</div>
           </div>
           <div>
-            <div class="cf-ad-kv-label">Entrypoint</div>
-            <code>{{ app.binary_entrypoint || './server' }}</code>
+            <div class="cf-ad-kv-label">Traffic %</div>
+            <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+              <span style="font-weight: 600; font-size: 0.9rem;">{{ app.status === 'running' ? '100%' : '0%' }}</span>
+              <div class="cf-traffic-bar-track">
+                <div class="cf-traffic-bar-fill" :style="{ width: app.status === 'running' ? '100%' : '0%' }"></div>
+              </div>
+            </div>
           </div>
           <div>
-            <div class="cf-ad-kv-label">Status</div>
-            <CfBadge :variant="app.status === 'running' ? 'success' : 'neutral'" dot>
-              {{ app.status || 'stopped' }}
-            </CfBadge>
+            <div class="cf-ad-kv-label">Requests/sec</div>
+            <div style="font-weight: 600; font-size: 0.9rem;">
+              {{ stats?.rps ?? 0 }} <span style="color: #71717a; font-weight: 400; font-size: 0.8rem;">req/sec</span>
+            </div>
+          </div>
+          <div>
+            <div class="cf-ad-kv-label">Error rate</div>
+            <div style="font-weight: 600; font-size: 0.9rem;">{{ stats?.error_rate ?? 0 }}%</div>
+          </div>
+          <div>
+            <div class="cf-ad-kv-label">Median CPU time</div>
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <span style="font-weight: 600; font-size: 0.9rem; white-space: nowrap;">{{ stats?.cpu_ms ?? '1.2' }} ms</span>
+              <div style="width: 110px; max-width: 122px;">
+                <CfSparkline :values="[12, 18, 16, 22, 19, 24, 21]" :height="24" color="#0051c3" />
+              </div>
+            </div>
           </div>
         </div>
-      </CfCard>
+      </div>
 
-      <CfCard title="Deployment history" body-class="cf-ad-table-body">
-        <template #actions>
-          <CfButton variant="secondary" size="sm" icon="refresh" @click="fetchDeployments">Refresh</CfButton>
-        </template>
-        <CfTable
-          :columns="deployColumns"
-          :data="filteredDeployments"
-          row-key="id"
-          searchable
-          search-placeholder="Filter deployments..."
-          column-picker
-          density-toggle
-        >
-          <template #toolbar>
-            <CfTabs v-model="deployStatusTab" :tabs="['All', 'Active', 'Previous']" />
-          </template>
-          <template #col-version="{ val }">
-            <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
-              <code class="cf-ad-code-pill">{{ val }}</code>
-              <CfButton variant="ghost" size="sm" icon="clipboard" icon-only title="Copy Version ID" @click="copyText(val)" />
-            </div>
-          </template>
-          <template #col-traffic="{ val }">
-            <div style="display: flex; align-items: center; gap: 8px; min-width: 110px;">
-              <div style="flex: 1; height: 6px; border-radius: 9999px; background: var(--color-kumo-recessed, #f4f4f5); overflow: hidden;">
-                <div :style="{ width: `${val}%`, height: '100%', background: 'var(--color-kumo-brand, #f6821f)' }"></div>
-              </div>
-              <span class="font-mono" style="font-size: 0.78rem;">{{ val }}%</span>
-            </div>
-          </template>
-          <template #col-cpu="{ val }">
-            <div style="width: 90px;">
-              <CfSparkline :values="val" :height="24" />
-            </div>
-          </template>
-          <template #col-status="{ val }">
-            <CfBadge :variant="val === 'Active' || val === 'Ready' ? 'success' : 'neutral'" size="sm" dot>{{ val }}</CfBadge>
-          </template>
-          <template #col-source="{ val }">
-            <CfBadge variant="neutral" size="sm">{{ val }}</CfBadge>
-          </template>
-          <template #actions="{ row }">
-            <CfDropdownMenu :items="deployMenuItems" @select="handleDeployAction($event, row)">
-              <template #trigger>
-                <CfButton variant="ghost" size="sm" icon-only title="Row actions">⋯</CfButton>
-              </template>
-            </CfDropdownMenu>
-          </template>
-        </CfTable>
-      </CfCard>
+      <!-- 2. Toolbar Row (View rollout history + icon-only Refresh) -->
+      <div class="cf-deploy-toolbar">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <CfButton variant="secondary" size="sm" @click="deployStatusTab = deployStatusTab === 'All' ? 'Active' : 'All'">
+            {{ deployStatusTab === 'All' ? 'View active only' : 'View rollout history' }}
+          </CfButton>
+          <span style="font-size: 0.8rem; color: #71717a;">Port :{{ app.active_port || 8001 }} · {{ app.binary_entrypoint || './server' }}</span>
+        </div>
+        <CfButton variant="secondary" size="sm" icon="refresh" icon-only title="Refresh deployments" @click="fetchDeployments" />
+      </div>
+
+      <!-- 3. Cloudflare-exact Headerless Deployment Activity Table -->
+      <div class="cf-deploy-table-card">
+        <table class="cf-deploy-table">
+          <tbody>
+            <tr v-for="row in filteredDeployments" :key="row.id">
+              <td style="width: 150px; white-space: nowrap;">
+                <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                  <span class="cf-deploy-ver-link" @click="copyText(row.version)">{{ shortVersion(row.version) }}</span>
+                  <CfButton variant="ghost" size="sm" icon="clipboard" icon-only title="Copy Version ID" @click="copyText(row.version)" />
+                </div>
+              </td>
+              <td class="cf-deploy-msg">{{ row.message }}</td>
+              <td style="width: 120px; white-space: nowrap;">
+                <div style="display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.85rem;">
+                  <span v-if="row.traffic > 0" class="cf-deploy-meter" role="meter" :aria-valuenow="row.traffic"></span>
+                  <span v-else class="cf-deploy-dot" :class="{ ready: row.status === 'Ready' || row.status === 'Active' }"></span>
+                  <span>{{ row.status }}</span>
+                </div>
+              </td>
+              <td style="width: 110px;">
+                <CfBadge variant="neutral" size="sm">{{ row.source }}</CfBadge>
+              </td>
+              <td style="width: 120px; color: #71717a; font-size: 0.85rem;">by {{ row.author }}</td>
+              <td style="width: 100px; color: #71717a; font-size: 0.85rem; text-align: right; white-space: nowrap;">{{ row.time }}</td>
+              <td style="width: 48px; text-align: right;">
+                <CfDropdownMenu :items="deployMenuItems" @select="handleDeployAction($event, row)">
+                  <template #trigger>
+                    <CfButton variant="ghost" size="sm" icon-only title="More options">⋯</CfButton>
+                  </template>
+                </CfDropdownMenu>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ================================================================ -->
@@ -619,26 +638,35 @@ const formattedLogs = computed(() =>
   }))
 )
 
+function shortVersion(v) {
+  if (!v) return 'initial0'
+  return String(v).slice(0, 8)
+}
+
 const deployments = computed(() => {
   if (rawDeployments.value.length > 0) {
     return rawDeployments.value.map((d, idx) => ({
       id: d.deployment_id || idx + 1,
-      version: d.version_hash || 'initial',
+      version: d.version_hash || 'initial0',
+      message: d.logs ? 'Deployed release' : 'Manually deployed',
       traffic: idx === 0 && app.value.status === 'running' ? 100 : 0,
       cpu: idx === 0 ? [12, 18, 16, 22, 19, 24, 21] : [8, 10, 9, 11, 10, 9, 8],
-      status: idx === 0 && app.value.status === 'running' ? 'Active' : (d.status || 'Previous'),
-      source: d.deployed_by || 'Orbit CLI',
+      status: idx === 0 && app.value.status === 'running' ? 'Ready' : (d.status || 'Ready'),
+      source: 'Orbit CLI',
+      author: d.deployed_by || 'admin',
       time: formatRelative(d.created_at)
     }))
   }
   return [
     {
       id: 1,
-      version: app.value.current_version || 'initial-seed',
+      version: app.value.current_version || 'initial0',
+      message: 'Manually deployed',
       traffic: app.value.status === 'running' ? 100 : 0,
       cpu: [14, 19, 17, 23, 20, 26, 22],
-      status: app.value.status === 'running' ? 'Active' : 'Stopped',
+      status: app.value.status === 'running' ? 'Ready' : 'Stopped',
       source: 'Orbit CLI',
+      author: 'admin',
       time: formatRelative(app.value.updated_at)
     }
   ]
@@ -1091,6 +1119,116 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
   align-items: center;
+}
+
+.cf-deploy-active-card {
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.cf-deploy-active-header {
+  background: #fafafa;
+  border-bottom: 1px solid #e4e4e7;
+  padding: 0.65rem 1.15rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #18181b;
+}
+
+.cf-deploy-active-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(110px, 1fr));
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .cf-deploy-active-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.cf-traffic-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #e4e4e7;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cf-traffic-bar-fill {
+  height: 100%;
+  background: #0051c3;
+  border-right: 2px solid #18181b;
+}
+
+.cf-deploy-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cf-deploy-table-card {
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: visible;
+}
+
+.cf-deploy-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cf-deploy-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f4f4f5;
+  vertical-align: middle;
+}
+
+.cf-deploy-table tr:last-child td {
+  border-bottom: none;
+}
+
+.cf-deploy-ver-link {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #0051c3;
+  cursor: pointer;
+}
+
+.cf-deploy-ver-link:hover {
+  text-decoration: underline;
+}
+
+.cf-deploy-msg {
+  font-style: italic;
+  color: #71717a;
+  font-size: 0.875rem;
+}
+
+.cf-deploy-meter {
+  display: inline-block;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: #0051c3;
+}
+
+.cf-deploy-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a1a1aa;
+}
+
+.cf-deploy-dot.ready {
+  background: #10b981;
 }
 
 .app-log-terminal {
