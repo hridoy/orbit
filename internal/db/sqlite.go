@@ -63,5 +63,17 @@ func (d *DB) Migrate() error {
 	if err != nil {
 		return fmt.Errorf("schema execution error: %w", err)
 	}
+	// Idempotent column migrations for existing databases
+	alterStmts := []string{
+		`ALTER TABLE storage_buckets ADD COLUMN versioning_enabled INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE storage_buckets ADD COLUMN object_lock_enabled INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE storage_buckets ADD COLUMN retention_days INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE storage_buckets ADD COLUMN lifecycle_days INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE storage_buckets ADD COLUMN webhook_url TEXT NOT NULL DEFAULT '';`,
+		`ALTER TABLE storage_objects ADD COLUMN retain_until DATETIME;`,
+	}
+	for _, stmt := range alterStmts {
+		_, _ = d.Exec(stmt)
+	}
 	return nil
 }

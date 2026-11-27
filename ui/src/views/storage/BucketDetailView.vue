@@ -1,841 +1,843 @@
 <template>
   <div class="cf-bucket-page">
-    <!-- 1. BREADCRUMBS & TOP BAR -->
-    <div class="cf-bucket-breadcrumb-bar">
-      <router-link to="/r2" class="cf-bucket-breadcrumb-link">
-        <CfIcon name="r2" size="18" />
-        <span>R2 Object Storage</span>
-      </router-link>
-      <span style="color: #d4d4d4;">›</span>
-      <div class="cf-bucket-breadcrumb-name">
-        <span>{{ bucket.name }}</span>
-        <button class="cf-mini-icon-btn" title="Copy bucket name" @click="copyText(bucket.name, 'name')">
-          <CfIcon v-if="copiedKey !== 'name'" name="cis-clipboard" size="14" />
-          <CfIcon v-else name="cis-checkmark-1-medium" size="14" style="color: #10b981;" />
-        </button>
+    <!-- Breadcrumbs -->
+    <div class="breadcrumbs">
+      <router-link to="/storage">Object Storage</router-link>
+      <span class="divider">/</span>
+      <span class="current">{{ bucketName }}</span>
+    </div>
+
+    <!-- Header -->
+    <div class="page-title-row">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+          <CfIcon name="r2" size="22" style="color: #f6821f;" />
+          <h1 class="page-title">{{ bucketName }}</h1>
+          <CfBadge :variant="bucket.is_public ? 'warning' : 'neutral'" size="sm">
+            {{ bucket.is_public ? 'Public Read' : 'Private' }}
+          </CfBadge>
+          <CfBadge v-if="bucket.versioning_enabled" variant="info" size="sm">Versioning</CfBadge>
+          <CfBadge v-if="bucket.object_lock_enabled" variant="danger" size="sm">
+            WORM Lock ({{ bucket.retention_days }}d)
+          </CfBadge>
+          <CfBadge v-if="bucket.lifecycle_days > 0" variant="neutral" size="sm">
+            TTL {{ bucket.lifecycle_days }}d
+          </CfBadge>
+          <CfBadge v-if="bucket.webhook_url" variant="success" size="sm">Webhook</CfBadge>
+        </div>
+        <p class="page-subtitle">
+          S3-compatible bucket on local Orbit node · Created {{ formatDate(bucket.created_at) }}
+        </p>
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <CfButton variant="secondary" icon="refresh" @click="loadAll">Refresh</CfButton>
+        <CfButton variant="primary" icon="upload" @click="showUploadModal = true">Upload Object</CfButton>
       </div>
     </div>
 
-    <!-- 2. SEGMENTED PILL TABLIST (Objects, Metrics, Settings) -->
-    <div class="cf-bucket-tabs-row">
-      <div class="cf-bucket-pill-tabs" role="tablist">
-        <button
-          role="tab"
-          class="cf-bucket-tab"
-          :class="{ active: currentTab === 'objects' }"
-          @click="currentTab = 'objects'"
-        >
-          Objects
-        </button>
-        <button
-          role="tab"
-          class="cf-bucket-tab"
-          :class="{ active: currentTab === 'metrics' }"
-          @click="currentTab = 'metrics'"
-        >
-          Metrics
-        </button>
-        <button
-          role="tab"
-          class="cf-bucket-tab"
-          :class="{ active: currentTab === 'settings' }"
-          @click="currentTab = 'settings'"
-        >
-          Settings
-        </button>
-      </div>
+    <!-- Segmented Tabs (Versions tab unlocks automatically when Versioning is enabled) -->
+    <div class="cf-tabs-bar" role="tablist">
+      <button
+        role="tab"
+        class="cf-tab-btn"
+        :class="{ active: activeTab === 'objects' }"
+        @click="activeTab = 'objects'"
+      >
+        Objects ({{ objects.length }})
+      </button>
+      <button
+        v-if="bucket.versioning_enabled"
+        role="tab"
+        class="cf-tab-btn"
+        :class="{ active: activeTab === 'versions' }"
+        @click="activeTab = 'versions'; fetchVersions()"
+      >
+        Versions ({{ versionCount }})
+      </button>
+      <button
+        role="tab"
+        class="cf-tab-btn"
+        :class="{ active: activeTab === 'metrics' }"
+        @click="activeTab = 'metrics'"
+      >
+        Metrics & Quota
+      </button>
+      <button
+        role="tab"
+        class="cf-tab-btn"
+        :class="{ active: activeTab === 'settings' }"
+        @click="activeTab = 'settings'"
+      >
+        Settings & Advanced
+      </button>
     </div>
+
+    <CfAlert v-if="actionError" variant="danger" title="Operation Failed" style="margin-bottom: 0.25rem;">
+      {{ actionError }}
+    </CfAlert>
+    <CfAlert v-if="actionSuccess" variant="success" title="Success" style="margin-bottom: 0.25rem;">
+      {{ actionSuccess }}
+    </CfAlert>
 
     <!-- TAB 1: OBJECTS -->
-    <div v-if="currentTab === 'objects'" class="cf-bucket-content-body">
-      <!-- Metadata Stat Cards Grid (4 Cards) -->
-      <div class="cf-bucket-meta-grid">
-        <div class="cf-bucket-meta-card">
-          <span class="cf-bucket-meta-label">Location</span>
-          <span class="cf-bucket-meta-val">Asia-Pacific (APAC)</span>
+    <div v-if="activeTab === 'objects'" class="cf-tab-panel">
+      <div class="cf-meta-strip">
+        <div class="cf-meta-card">
+          <span class="cf-meta-label">Storage Used</span>
+          <span class="cf-meta-value">{{ formatBytes(bucket.used_bytes) }} / {{ bucket.quota_bytes > 0 ? formatBytes(bucket.quota_bytes) : 'Unlimited' }}</span>
         </div>
-        <div class="cf-bucket-meta-card">
-          <span class="cf-bucket-meta-label">Storage class</span>
-          <span class="cf-bucket-meta-val">Standard</span>
+        <div class="cf-meta-card">
+          <span class="cf-meta-label">Objects</span>
+          <span class="cf-meta-value">{{ objectCount }}</span>
         </div>
-        <div class="cf-bucket-meta-card">
-          <span class="cf-bucket-meta-label">Created</span>
-          <span class="cf-bucket-meta-val">Nov 3, 2026</span>
+        <div class="cf-meta-card">
+          <span class="cf-meta-label">Region</span>
+          <span class="cf-meta-value">{{ region }}</span>
         </div>
-        <div class="cf-bucket-meta-card">
-          <span class="cf-bucket-meta-label">S3 API</span>
-          <span class="cf-bucket-meta-val">
-            <code :title="s3Endpoint">{{ s3Endpoint }}</code>
-            <button class="cf-mini-icon-btn" title="Copy S3 URL" @click="copyText(s3Endpoint, 's3')">
-              <svg v-if="copiedKey !== 's3'" width="13" height="13" viewBox="0 0 256 256" fill="currentColor">
-                <path d="M216,40H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V48A8,8,0,0,0,216,40ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V56H208Z"></path>
-              </svg>
-              <svg v-else width="13" height="13" viewBox="0 0 256 256" fill="#10b981">
-                <path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path>
-              </svg>
-            </button>
-          </span>
+        <div class="cf-meta-card">
+          <span class="cf-meta-label">S3 Endpoint</span>
+          <span class="cf-meta-value" style="font-family: monospace; font-size: 0.8rem;">{{ s3BucketUrl }}</span>
         </div>
       </div>
 
-      <!-- Action Toolbar -->
-      <div class="cf-bucket-toolbar-row">
-        <div class="cf-bucket-search-box">
-          <CfIcon name="cis-magnifying-glass" size="14" style="color: #71717a;" />
-          <input
-            v-model="searchPrefix"
-            type="text"
-            class="cf-bucket-search-input"
-            placeholder="Search by prefix..."
-          />
+      <CfCard title="Objects" body-class="table-body">
+        <template #actions>
+          <div style="width: 260px;">
+            <CfInput v-model="searchPrefix" placeholder="Filter by key prefix..." prefix-icon="search" clearable />
+          </div>
+        </template>
+
+        <div v-if="loading" style="padding: 2rem; display: flex; justify-content: center;">
+          <CfLoader size="26" />
         </div>
 
-        <div class="cf-bucket-actions-group">
-          <!-- View prefixes as folders toggle -->
-          <label class="cf-view-prefixes-toggle">
-            <input type="checkbox" v-model="viewPrefixesAsFolders" />
-            <span>View prefixes as folders</span>
+        <CfEmptyState
+          v-else-if="!filteredObjects.length"
+          title="Bucket is empty"
+          description="Upload an object via the dashboard, AWS CLI, or any S3 SDK."
+          action-text="Upload Object"
+          action-icon="upload"
+          @action="showUploadModal = true"
+        />
+
+        <CfTable v-else :columns="objectColumns" :data="filteredObjects" row-key="key">
+          <template #col-key="{ row }">
+            <div style="display: flex; align-items: center; gap: 0.45rem;">
+              <CfIcon name="file" size="14" style="color: #71717a;" />
+              <span style="font-weight: 500; font-family: monospace;">{{ row.key }}</span>
+            </div>
+          </template>
+          <template #col-size="{ val }">
+            <span>{{ formatBytes(val) }}</span>
+          </template>
+          <template #actions="{ row }">
+            <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+              <CfButton variant="secondary" size="sm" @click="openPresign(row.key)">Presign</CfButton>
+              <CfButton variant="secondary" size="sm" @click="downloadObject(row.key)">Download</CfButton>
+              <CfButton
+                v-if="bucket.versioning_enabled"
+                variant="secondary"
+                size="sm"
+                @click="viewKeyVersions(row.key)"
+              >
+                History
+              </CfButton>
+              <CfButton
+                variant="danger-outline"
+                size="sm"
+                icon="trash"
+                icon-only
+                title="Delete object"
+                @click="promptDeleteObject(row.key)"
+              />
+            </div>
+          </template>
+        </CfTable>
+      </CfCard>
+    </div>
+
+    <!-- TAB 2: VERSIONS (Unlocked when Versioning is enabled) -->
+    <div v-if="activeTab === 'versions' && bucket.versioning_enabled" class="cf-tab-panel">
+      <CfCard title="Object Version History" subtitle="Restore previous versions or purge delete markers">
+        <template #actions>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <CfInput v-model="versionKeyFilter" placeholder="Filter by key..." clearable style="width: 220px;" />
+            <CfButton variant="secondary" size="sm" @click="fetchVersions">Reload</CfButton>
+          </div>
+        </template>
+
+        <CfEmptyState
+          v-if="!filteredVersions.length"
+          title="No archived versions yet"
+          description="Overwriting or deleting objects while Versioning is enabled automatically archives previous versions here."
+        />
+
+        <CfTable v-else :columns="versionColumns" :data="filteredVersions" row-key="version_id">
+          <template #col-object_key="{ val }">
+            <code style="font-size: 0.85rem;">{{ val }}</code>
+          </template>
+          <template #col-type="{ row }">
+            <CfBadge :variant="row.is_delete_marker ? 'danger' : 'info'" size="sm">
+              {{ row.is_delete_marker ? 'Delete Marker' : 'Version' }}
+            </CfBadge>
+          </template>
+          <template #col-size_bytes="{ val }">
+            <span>{{ formatBytes(val) }}</span>
+          </template>
+          <template #col-created_at="{ val }">
+            <span>{{ formatDate(val) }}</span>
+          </template>
+          <template #actions="{ row }">
+            <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+              <CfButton
+                v-if="!row.is_delete_marker"
+                variant="primary"
+                size="sm"
+                @click="restoreVersion(row.version_id)"
+              >
+                Restore
+              </CfButton>
+              <CfButton variant="danger-outline" size="sm" @click="purgeVersion(row.version_id)">Purge</CfButton>
+            </div>
+          </template>
+        </CfTable>
+      </CfCard>
+    </div>
+
+    <!-- TAB 3: METRICS & QUOTA -->
+    <div v-if="activeTab === 'metrics'" class="cf-tab-panel">
+      <div class="cf-metrics-grid">
+        <CfCard title="Quota Utilization">
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.875rem;">
+              <span>Used: <strong>{{ formatBytes(bucket.used_bytes) }}</strong></span>
+              <span>Limit: <strong>{{ bucket.quota_bytes > 0 ? formatBytes(bucket.quota_bytes) : 'Unlimited' }}</strong></span>
+            </div>
+            <div class="cf-progress-track">
+              <div class="cf-progress-fill" :style="{ width: quotaPercent + '%' }"></div>
+            </div>
+            <span style="font-size: 0.8rem; color: #71717a;">{{ quotaPercent }}% of configured bucket quota</span>
+          </div>
+        </CfCard>
+
+        <CfCard title="Bucket Inventory">
+          <div class="cf-kv-list">
+            <div class="cf-kv-row"><span>Active Objects</span><strong>{{ objectCount }}</strong></div>
+            <div class="cf-kv-row"><span>Archived Versions</span><strong>{{ versionCount }}</strong></div>
+            <div class="cf-kv-row"><span>Versioning</span><strong>{{ bucket.versioning_enabled ? 'Enabled' : 'Disabled' }}</strong></div>
+            <div class="cf-kv-row"><span>WORM Object Lock</span><strong>{{ bucket.object_lock_enabled ? `Enabled (${bucket.retention_days}d)` : 'Disabled' }}</strong></div>
+          </div>
+        </CfCard>
+      </div>
+    </div>
+
+    <!-- TAB 4: SETTINGS & ADVANCED FEATURES -->
+    <div v-if="activeTab === 'settings'" class="cf-tab-panel">
+      <CfCard
+        title="Advanced Storage Features"
+        subtitle="Enable enterprise S3 capabilities on this bucket. Features unlock automatically once enabled."
+      >
+        <template #actions>
+          <CfButton variant="secondary" size="sm" @click="enableAllAdvanced">
+            Enable All Advanced
+          </CfButton>
+        </template>
+
+        <div class="cf-settings-stack">
+          <label class="cf-toggle-row">
+            <div>
+              <div class="cf-toggle-title">Object Versioning</div>
+              <div class="cf-toggle-desc">Automatically archive previous versions on overwrite or delete and unlock the Versions history tab.</div>
+            </div>
+            <input type="checkbox" v-model="settingsForm.versioning_enabled" class="cf-switch" />
           </label>
 
-          <button v-if="viewPrefixesAsFolders" class="cf-btn-white" @click="showAddFolderModal = true">
-            <CfIcon name="cis-folder-1" size="14" />
-            <span>+ Add folder</span>
-          </button>
-          <button class="cf-btn-blue-primary" @click="showUploadDropzone = !showUploadDropzone">
-            <CfIcon name="cis-arrow-wall-down" size="14" style="transform: rotate(180deg);" />
-            <span>Upload</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- In-Page Nested Folder Breadcrumb Trail -->
-      <div v-if="currentPrefixPath.length > 0" class="cf-inpage-folder-breadcrumb">
-        <span class="cf-folder-crumb-link" @click="navigateToPrefix('')">{{ bucket.name }}</span>
-        <template v-for="(segment, idx) in currentPrefixPath" :key="idx">
-          <span class="cf-folder-crumb-sep">/</span>
-          <span 
-            v-if="idx < currentPrefixPath.length - 1" 
-            class="cf-folder-crumb-link" 
-            @click="navigateToPrefix(currentPrefixPath.slice(0, idx + 1).join('/') + '/')"
-          >
-            {{ segment }}
-          </span>
-          <span v-else class="cf-folder-crumb-current">
-            {{ segment }}
-          </span>
-        </template>
-        <button class="cf-mini-icon-btn" :title="copiedKey === 'prefix' ? 'Copied!' : 'Copy prefix path'" @click="copyText(activePrefix, 'prefix')">
-          <CfIcon v-if="copiedKey !== 'prefix'" name="cis-clipboard" size="12" />
-          <CfIcon v-else name="cis-checkmark-1-medium" size="12" style="color: #10b981;" />
-        </button>
-      </div>
-
-      <!-- Multi-select Bar (When >= 1 checked) -->
-      <div v-if="selectedKeys.length > 0" class="cf-multiselect-active-bar">
-        <span>{{ selectedKeys.length }} object(s) selected</span>
-        <button class="cf-btn-danger-solid" @click="deleteSelected">
-          Delete {{ selectedKeys.length }} object(s)
-        </button>
-      </div>
-
-      <!-- Drag & Drop Zone Box (Toggleable) -->
-      <div v-if="showUploadDropzone" class="cf-bucket-dropzone" @click="triggerFileInput">
-        <svg width="36" height="36" viewBox="0 0 256 256" fill="currentColor" style="color: #0051c3;">
-          <path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0ZM93.66,77.66,120,51.31V144a8,8,0,0,0,16,0V51.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,77.66Z"></path>
-        </svg>
-        <div style="font-weight: 500; font-size: 14px;">Drag and drop files or folders here, or click to browse</div>
-        <div style="font-size: 12px; color: #71717a;">Supports individual objects up to 5 TB in size via multipart upload.</div>
-        <input ref="fileInput" type="file" style="display: none;" multiple @change="handleFileUpload" />
-      </div>
-
-      <!-- Objects Table Card -->
-      <div class="cf-bucket-table-card">
-        <table class="cf-bucket-table">
-          <thead>
-            <tr>
-              <th style="width: 40px; text-align: center;">
-                <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
-              </th>
-              <th>Name</th>
-              <th style="text-align: right;">Size</th>
-              <th>Storage class</th>
-              <th>Last modified</th>
-              <th style="width: 48px;"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="obj in filteredObjects" :key="obj.key">
-              <td style="text-align: center;">
-                <input
-                  type="checkbox"
-                  :checked="selectedKeys.includes(obj.key)"
-                  @change="toggleSelect(obj.key)"
-                />
-              </td>
-              <td>
-                <div class="cf-obj-name-cell">
-                  <!-- Folder Icon vs File Icon -->
-                  <CfIcon v-if="obj.isFolder" name="cis-folder-1" size="16" style="color: #f59e0b;" />
-                  <CfIcon v-else name="cis-page-text" size="16" style="color: #71717a;" />
-                  <span class="cf-obj-link" @click="handleItemClick(obj)">
-                    {{ obj.key }}
-                  </span>
-                </div>
-              </td>
-              <td style="text-align: right; font-variant-numeric: tabular-nums;">
-                {{ obj.size }}
-              </td>
-              <td>{{ obj.storageClass }}</td>
-              <td style="color: #71717a; font-variant-numeric: tabular-nums;">{{ obj.modified }}</td>
-              <td style="position: relative;">
-                <button class="cf-mini-icon-btn" @click="toggleRowMenu(obj.key)">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 256 256">
-                    <path d="M144,128a16,16,0,1,1-16-16A16,16,0,0,1,144,128ZM60,112a16,16,0,1,0,16,16A16,16,0,0,0,60,112Zm136,0a16,16,0,1,0,16,16A16,16,0,0,0,196,112Z"/>
-                  </svg>
-                </button>
-                <div v-if="activeRowMenuKey === obj.key" class="cf-tokens-menu-popover">
-                  <button v-if="!obj.isFolder" class="cf-tokens-menu-item" @click="downloadObj(obj)">Download</button>
-                  <button class="cf-tokens-menu-item danger" @click="deleteSingleObj(obj)">Delete</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB 2: METRICS -->
-    <div v-else-if="currentTab === 'metrics'" class="cf-bucket-content-body">
-      <!-- Top Time Range Filter -->
-      <div style="display: flex; justify-content: flex-end;">
-        <select class="cf-input-control" style="width: 180px; height: 34px;">
-          <option>Last 24 hours</option>
-          <option>Last 6 hours</option>
-          <option>Last 7 days</option>
-          <option>Last 30 days</option>
-        </select>
-      </div>
-
-      <!-- 5 Summary KPI Cards -->
-      <div class="cf-metrics-kpi-grid">
-        <div class="cf-bucket-meta-card">
-          <span class="cf-bucket-meta-label">Average Storage</span>
-          <span class="cf-bucket-meta-val">49.98 MB</span>
-        </div>
-        <div class="cf-bucket-meta-card">
-          <span class="cf-bucket-meta-label">Data Retrieved</span>
-          <span class="cf-bucket-meta-val">0 B</span>
-        </div>
-        <div class="cf-bucket-meta-card">
-          <span class="cf-bucket-meta-label">Class A Operations</span>
-          <span class="cf-bucket-meta-val">11</span>
-        </div>
-        <div class="cf-bucket-meta-card">
-          <span class="cf-bucket-meta-label">Class B Operations</span>
-          <span class="cf-bucket-meta-val">18</span>
-        </div>
-        <div class="cf-bucket-meta-card">
-          <span class="cf-bucket-meta-label">Request Distribution</span>
-          <span class="cf-bucket-meta-val">0</span>
-        </div>
-      </div>
-
-      <!-- 6 Charts Panels (2 Columns) -->
-      <div class="cf-metrics-charts-grid">
-        <!-- 1. Average Storage -->
-        <div class="cf-chart-panel-card">
-          <div class="cf-chart-panel-header">
-            <span class="cf-chart-title">Average Storage ⓘ</span>
-            <span class="cf-chart-legend">Total · 49.98 MB</span>
-          </div>
-          <div class="cf-chart-canvas-mock">
-            <div v-for="b in 18" :key="b" class="cf-chart-bar-col" :style="{ height: '65%' }"></div>
-          </div>
-        </div>
-
-        <!-- 2. Data Retrieved -->
-        <div class="cf-chart-panel-card">
-          <div class="cf-chart-panel-header">
-            <span class="cf-chart-title">Data Retrieved ⓘ</span>
-            <span class="cf-chart-legend">0 B</span>
-          </div>
-          <div style="height: 160px; display: flex; align-items: center; justify-content: center; color: #71717a; font-size: 13px;">
-            No data is available for this time range
-          </div>
-        </div>
-
-        <!-- 3. Class A Operations -->
-        <div class="cf-chart-panel-card">
-          <div class="cf-chart-panel-header">
-            <span class="cf-chart-title">Class A Operations ⓘ</span>
-            <span class="cf-chart-legend">Total · 11</span>
-          </div>
-          <div class="cf-chart-canvas-mock">
-            <div v-for="b in 18" :key="b" class="cf-chart-bar-col" :style="{ height: `${((b * 5 + 10) % 70) + 15}%` }"></div>
-          </div>
-        </div>
-
-        <!-- 4. Class B Operations -->
-        <div class="cf-chart-panel-card">
-          <div class="cf-chart-panel-header">
-            <span class="cf-chart-title">Class B Operations ⓘ</span>
-            <span class="cf-chart-legend">Total · 18</span>
-          </div>
-          <div class="cf-chart-canvas-mock">
-            <div v-for="b in 18" :key="b" class="cf-chart-bar-col" :style="{ height: `${((b * 7 + 15) % 80) + 10}%` }"></div>
-          </div>
-        </div>
-
-        <!-- 5. Errors by Status Code -->
-        <div class="cf-chart-panel-card">
-          <div class="cf-chart-panel-header">
-            <span class="cf-chart-title">Errors by Status Code ⓘ</span>
-            <span class="cf-chart-legend">Total · 6 (404 Not Found)</span>
-          </div>
-          <div class="cf-chart-canvas-mock">
-            <div v-for="b in 18" :key="b" class="cf-chart-bar-col" :style="{ height: `${b === 8 || b === 14 ? 40 : 0}%`, background: '#ef4444' }"></div>
-          </div>
-        </div>
-
-        <!-- 6. Request Distribution by Region -->
-        <div class="cf-chart-panel-card">
-          <div class="cf-chart-panel-header">
-            <span class="cf-chart-title">Request Distribution by Region</span>
-            <span class="cf-chart-legend">APAC · 100%</span>
-          </div>
-          <div style="height: 160px; display: flex; align-items: center; justify-content: center; color: #71717a; font-size: 13px;">
-            All operations originating from APAC Region
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 3: SETTINGS -->
-    <div v-else-if="currentTab === 'settings'" class="cf-bucket-content-body">
-      <div class="cf-settings-split-grid">
-        <!-- Main Area: 13 Stacked Settings Cards -->
-        <div class="cf-settings-cards-stack">
-          <!-- 1. General -->
-          <div id="general" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">General</h3>
+          <div class="cf-toggle-row">
+            <div>
+              <div class="cf-toggle-title">Object Lock (WORM Retention)</div>
+              <div class="cf-toggle-desc">Block object deletion or overwrite until the retention period expires.</div>
             </div>
-            <div class="cf-bucket-meta-grid">
-              <div class="cf-bucket-meta-card">
-                <span class="cf-bucket-meta-label">Bucket Name</span>
-                <span class="cf-bucket-meta-val">{{ bucket.name }}</span>
-              </div>
-              <div class="cf-bucket-meta-card">
-                <span class="cf-bucket-meta-label">Location Hint</span>
-                <span class="cf-bucket-meta-val">Asia-Pacific (APAC)</span>
-              </div>
-              <div class="cf-bucket-meta-card">
-                <span class="cf-bucket-meta-label">Created</span>
-                <span class="cf-bucket-meta-val">Nov 3, 2026</span>
-              </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <CfInput
+                v-if="settingsForm.object_lock_enabled"
+                v-model.number="settingsForm.retention_days"
+                type="number"
+                min="1"
+                placeholder="Days"
+                style="width: 110px;"
+              />
+              <input type="checkbox" v-model="settingsForm.object_lock_enabled" class="cf-switch" />
             </div>
           </div>
 
-          <!-- 2. Custom Domains -->
-          <div id="domains" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">Custom Domains ⓘ</h3>
-              <button class="cf-btn-blue-primary" style="height: 30px; font-size: 12px;" @click="alert('Add Domain dialog.')">+ Add</button>
+          <label class="cf-toggle-row">
+            <div>
+              <div class="cf-toggle-title">Public Read Access</div>
+              <div class="cf-toggle-desc">Allow unauthenticated GET and HEAD requests to objects in this bucket.</div>
             </div>
-            <p class="cf-setting-desc">There is no custom domain assigned to this bucket.</p>
-          </div>
+            <input type="checkbox" v-model="settingsForm.is_public" class="cf-switch" />
+          </label>
 
-          <!-- 3. Public Development URL -->
-          <div id="public-url" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">Public Development URL ⓘ</h3>
-              <button class="cf-btn-blue-primary" style="height: 30px; font-size: 12px;" @click="alert('Public dev URL enabled.')">Enable</button>
+          <div class="cf-toggle-row">
+            <div>
+              <div class="cf-toggle-title">Lifecycle Auto-Expiry (TTL Days)</div>
+              <div class="cf-toggle-desc">Expire objects older than N days (0 disables lifecycle expiry). Locked objects are preserved.</div>
             </div>
-            <p class="cf-setting-desc">The public development URL is disabled for this bucket.</p>
-          </div>
-
-          <!-- 4. Basin Catalog -->
-          <div id="basin" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">Basin Catalog ⓘ</h3>
-              <button class="cf-btn-blue-primary" style="height: 30px; font-size: 12px;" @click="alert('Basin catalog enabled.')">Enable</button>
-            </div>
-            <p class="cf-setting-desc">Basin Catalog is disabled for this bucket.</p>
-          </div>
-
-          <!-- 5. CORS Policy -->
-          <div id="cors" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">CORS Policy ⓘ</h3>
-              <button class="cf-btn-blue-primary" style="height: 30px; font-size: 12px;" @click="alert('Add CORS modal.')">+ Add</button>
-            </div>
-            <p class="cf-setting-desc">There is no CORS Policy defined for this bucket.</p>
-          </div>
-
-          <!-- 6. Object Lifecycle Rules -->
-          <div id="lifecycle" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">Object Lifecycle Rules ⓘ</h3>
-              <button class="cf-btn-blue-primary" style="height: 30px; font-size: 12px;" @click="alert('Add Lifecycle Rule.')">+ Add</button>
-            </div>
-            <div class="cf-bucket-table-card">
-              <table class="cf-bucket-table">
-                <thead>
-                  <tr>
-                    <th>Rule Name</th>
-                    <th>Prefix</th>
-                    <th>Actions</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Default Multipart Abort Rule</td>
-                    <td>--</td>
-                    <td>Abort uploads after 7 day(s)</td>
-                    <td><span class="cf-tokens-badge-active">Enabled</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- 7. Bucket Lock Rules -->
-          <div id="bucket-lock" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">Bucket Lock Rules ⓘ</h3>
-              <button class="cf-btn-blue-primary" style="height: 30px; font-size: 12px;" @click="alert('Add Lock Rule.')">+ Add</button>
-            </div>
-            <p class="cf-setting-desc">There are no bucket lock rules defined for this bucket.</p>
-          </div>
-
-          <!-- 8. Event Notifications -->
-          <div id="events" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">Event Notifications ⓘ</h3>
-            </div>
-            <p class="cf-setting-desc">Using event notifications requires you to purchase a Workers Paid plan.</p>
-            <div style="background: #fafafa; border: 1px solid #e2e8f0; border-radius: 6px; padding: 1rem; display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <div style="font-weight: 600; font-size: 14px;">Workers Paid Plan required</div>
-                <div style="font-size: 12px; color: #71717a;">Pay-as-you-go event queues and notification pipelines.</div>
-              </div>
-              <button class="cf-btn-blue-primary" style="height: 32px; font-size: 13px;" @click="alert('Purchase Workers Paid')">
-                Purchase Workers Paid
-              </button>
-            </div>
-          </div>
-
-          <!-- 9. Data Access Logs -->
-          <div id="logs" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">Data Access Logs</h3>
-              <select class="cf-input-control" style="width: 140px; height: 32px;">
-                <option>● Disabled</option>
-                <option>● Enabled</option>
-              </select>
-            </div>
-            <p class="cf-setting-desc">Record object-level read, write, list, multipart upload, and delete operations for this bucket.</p>
-          </div>
-
-          <!-- 10. Local Uploads (Beta) -->
-          <div id="local-uploads" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">
-                Local Uploads
-                <span class="cf-tokens-badge-active" style="background: rgba(0,81,195,0.1); color: #0051c3;">Beta</span>
-              </h3>
-              <select class="cf-input-control" style="width: 140px; height: 32px;">
-                <option>● Disabled</option>
-                <option>● Enabled</option>
-              </select>
-            </div>
-            <p class="cf-setting-desc">Improve performance for cross-region uploads. Check your Request Distribution metrics to see where requests originate.</p>
-          </div>
-
-          <!-- 11. On Demand Migration -->
-          <div id="migration" class="cf-setting-card">
-            <div class="cf-setting-card-head">
-              <h3 class="cf-setting-title">On Demand Migration ⓘ</h3>
-              <button class="cf-btn-blue-primary" style="height: 30px; font-size: 12px;" @click="alert('On demand migration enabled.')">Enable</button>
-            </div>
-            <p class="cf-setting-desc">Continuously migrate data from an Amazon S3 and Google Cloud bucket to this bucket only as read requests are made.</p>
-          </div>
-
-          <!-- 12. Default Storage Class -->
-          <div id="storage-class" class="cf-setting-card">
-            <h3 class="cf-setting-title">Default Storage Class</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-              <div
-                class="cf-perm-option"
-                :class="{ active: defaultStorageClass === 'Standard' }"
-                @click="defaultStorageClass = 'Standard'"
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <CfInput v-model.number="settingsForm.lifecycle_days" type="number" min="0" style="width: 110px;" />
+              <CfButton
+                v-if="bucket.lifecycle_days > 0"
+                variant="secondary"
+                size="sm"
+                @click="runLifecycleNow"
               >
-                <input type="radio" name="storageClass" :checked="defaultStorageClass === 'Standard'" />
-                <div class="cf-perm-text-group">
-                  <span class="cf-perm-name">Standard</span>
-                  <span class="cf-perm-desc">Recommended for objects that will be accessed at least once a month.</span>
-                </div>
-              </div>
-              <div
-                class="cf-perm-option"
-                :class="{ active: defaultStorageClass === 'Infrequent Access' }"
-                @click="defaultStorageClass = 'Infrequent Access'"
-              >
-                <input type="radio" name="storageClass" :checked="defaultStorageClass === 'Infrequent Access'" />
-                <div class="cf-perm-text-group">
-                  <span class="cf-perm-name">Infrequent Access</span>
-                  <span class="cf-perm-desc">Recommended for objects that will be accessed less than once a month.</span>
-                </div>
-              </div>
+                Run Now
+              </CfButton>
             </div>
           </div>
 
-          <!-- 13. Danger Zone -->
-          <div id="danger" class="cf-setting-card cf-danger-card">
-            <h3 class="cf-setting-title" style="color: #dc2626;">Danger Zone</h3>
-            <div class="cf-danger-action-row">
-              <div>
-                <div style="font-weight: 600; font-size: 14px; color: #18181b;">Empty Bucket</div>
-                <div class="cf-setting-desc">Delete all objects and folders in this bucket. The bucket and configurations will remain.</div>
-              </div>
-              <button class="cf-btn-danger-solid" @click="emptyBucket">Empty</button>
+          <div class="cf-toggle-row">
+            <div>
+              <div class="cf-toggle-title">Storage Quota</div>
+              <div class="cf-toggle-desc">Enforce hard storage limit on S3 PUT requests (0 = Unlimited).</div>
             </div>
-            <div class="cf-danger-action-row">
-              <div>
-                <div style="font-weight: 600; font-size: 14px; color: #18181b;">Delete bucket</div>
-                <div class="cf-setting-desc">Permanently delete this bucket and all configurations associated with it.</div>
-              </div>
-              <button class="cf-btn-danger-solid" @click="deleteBucket">Delete</button>
+            <select v-model.number="settingsForm.quota_bytes" class="cf-select-input">
+              <option :value="0">Unlimited</option>
+              <option :value="1073741824">1 GB</option>
+              <option :value="10737418240">10 GB</option>
+              <option :value="53687091200">50 GB</option>
+              <option :value="107374182400">100 GB</option>
+            </select>
+          </div>
+
+          <div class="cf-toggle-row" style="align-items: flex-start;">
+            <div>
+              <div class="cf-toggle-title">Event Webhook URL</div>
+              <div class="cf-toggle-desc">Receive async JSON POST notifications on ObjectCreated and ObjectRemoved events.</div>
             </div>
+            <CfInput
+              v-model="settingsForm.webhook_url"
+              placeholder="https://example.com/webhooks/s3"
+              style="width: 320px;"
+            />
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; padding-top: 0.5rem;">
+            <CfButton variant="primary" :loading="savingSettings" @click="saveSettings">
+              Save Bucket Settings
+            </CfButton>
           </div>
         </div>
-
-        <!-- Right Rail Table of Contents ("On this page") -->
-        <nav class="cf-settings-toc-rail" aria-label="On this page">
-          <span class="cf-toc-header">On this page</span>
-          <a href="#general" class="cf-toc-link">General</a>
-          <a href="#domains" class="cf-toc-link">Custom Domains</a>
-          <a href="#public-url" class="cf-toc-link">Public Development URL</a>
-          <a href="#basin" class="cf-toc-link">Basin Catalog</a>
-          <a href="#cors" class="cf-toc-link">CORS Policy</a>
-          <a href="#lifecycle" class="cf-toc-link">Object Lifecycle Rules</a>
-          <a href="#bucket-lock" class="cf-toc-link">Bucket Lock Rules</a>
-          <a href="#events" class="cf-toc-link">Event Notifications</a>
-          <a href="#logs" class="cf-toc-link">Data Access Logs</a>
-          <a href="#local-uploads" class="cf-toc-link">Local Uploads <span style="font-size: 10px; color: #0051c3;">Beta</span></a>
-          <a href="#migration" class="cf-toc-link">On Demand Migration</a>
-          <a href="#storage-class" class="cf-toc-link">Default Storage Class</a>
-          <a href="#danger" class="cf-toc-link danger">Danger Zone</a>
-        </nav>
-      </div>
+      </CfCard>
     </div>
 
-    <!-- MODAL: ADD FOLDER -->
-    <div v-if="showAddFolderModal" class="cf-r2-modal-overlay" @click.self="showAddFolderModal = false">
-      <div class="cf-r2-modal-card">
-        <div class="cf-r2-modal-header">
-          <h2 class="cf-r2-modal-title">Create folder</h2>
-          <button class="cf-mini-icon-btn" @click="showAddFolderModal = false">✕</button>
+    <!-- Upload Modal -->
+    <CfModal v-model="showUploadModal" title="Upload Object" size="sm">
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <CfInput v-model="uploadKey" label="Object Key" placeholder="e.g. backups/db.sql or hello.txt" required />
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.35rem;">Select File</label>
+          <input type="file" @change="onFilePicked" />
         </div>
-        <form @submit.prevent="createFolder">
-          <div class="cf-r2-modal-body">
-            <p class="cf-setting-desc">Folders are simulated prefixes in R2.</p>
-            <div class="cf-form-section">
-              <label class="cf-form-title" for="modal-folder-name">Folder name</label>
-              <div style="display: flex; align-items: center;">
-                <input
-                  id="modal-folder-name"
-                  v-model="newFolderName"
-                  type="text"
-                  class="cf-input-control"
-                  placeholder="e.g. thumbnails"
-                  required
-                />
-                <span style="padding: 0 8px; font-weight: 500; color: #71717a;">/</span>
-              </div>
-            </div>
-          </div>
-          <div class="cf-r2-modal-footer">
-            <button type="button" class="cf-btn-outline" @click="showAddFolderModal = false">
-              Cancel
-            </button>
-            <button type="submit" class="cf-btn-blue-primary">
-              Create folder
-            </button>
-          </div>
-        </form>
+        <CfAlert v-if="uploadError" variant="danger" title="Upload Error">{{ uploadError }}</CfAlert>
       </div>
-    </div>
+      <template #footer>
+        <CfButton variant="outline" @click="showUploadModal = false">Cancel</CfButton>
+        <CfButton variant="primary" :loading="uploading" @click="uploadObject">Upload</CfButton>
+      </template>
+    </CfModal>
+
+    <!-- Presigned URL Modal -->
+    <CfModal v-model="showPresignModal" title="Generate Presigned S3 URL" size="md">
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <div style="font-size: 0.875rem;">
+          Object: <code>{{ presignKey }}</code>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <label style="font-size: 0.85rem; font-weight: 500;">Expiry:</label>
+          <select v-model.number="presignTTL" class="cf-select-input" @change="generatePresign">
+            <option :value="900">15 Minutes</option>
+            <option :value="3600">1 Hour</option>
+            <option :value="86400">24 Hours</option>
+            <option :value="604800">7 Days</option>
+          </select>
+        </div>
+        <CfCopyField v-if="presignUrl" label="Signed URL" :value="presignUrl" />
+      </div>
+      <template #footer>
+        <CfButton variant="primary" @click="showPresignModal = false">Done</CfButton>
+      </template>
+    </CfModal>
+
+    <!-- Delete Object Confirmation -->
+    <CfConfirmDialog
+      v-model="showDeleteDialog"
+      title="Delete Object"
+      :message="`Delete '${objectToDelete}' from bucket '${bucketName}'?`"
+      confirm-label="Delete Object"
+      danger
+      @confirm="confirmDeleteObject"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { apiFetch } from '@/api/client.js'
 
-const router = useRouter()
 const route = useRoute()
+const bucketName = computed(() => String(route.params.id || ''))
+const activeTab = ref('objects')
 
-const currentTab = ref('objects')
-const searchPrefix = ref('')
-const copiedKey = ref('')
-const showAddFolderModal = ref(false)
-const showUploadDropzone = ref(false)
-const newFolderName = ref('')
-const activeRowMenuKey = ref(null)
-const selectedKeys = ref([])
-const defaultStorageClass = ref('Standard')
-const fileInput = ref(null)
-const viewPrefixesAsFolders = ref(true)
-
+const loading = ref(true)
 const bucket = ref({
-  id: 'code-collection',
-  name: 'code-collection',
-  region: 'APAC'
+  bucket_id: '',
+  is_public: false,
+  quota_bytes: 10737418240,
+  used_bytes: 0,
+  versioning_enabled: false,
+  object_lock_enabled: false,
+  retention_days: 0,
+  lifecycle_days: 0,
+  webhook_url: ''
 })
+const region = ref('us-east-1')
+const objectCount = ref(0)
+const versionCount = ref(0)
+const objects = ref([])
+const versions = ref([])
+const searchPrefix = ref('')
+const versionKeyFilter = ref('')
 
-const accountId = '330b08634cd698ef2ff8587d66ac4b2c'
-const s3Endpoint = `https://${accountId}.r2.cloudflarestorage.com/${bucket.value.name}`
+const actionError = ref('')
+const actionSuccess = ref('')
 
-// Active nested prefix
-const activePrefix = ref(route.query.prefix || '')
-
-// Synchronize with URL query ?prefix=
-watch(
-  () => route.query.prefix,
-  (newP) => {
-    activePrefix.value = newP || ''
-  },
-  { immediate: true }
-)
-
-const currentPrefixPath = computed(() => {
-  if (!activePrefix.value) return []
-  return activePrefix.value.split('/').filter(Boolean)
+const settingsForm = ref({
+  is_public: false,
+  versioning_enabled: false,
+  object_lock_enabled: false,
+  retention_days: 7,
+  lifecycle_days: 0,
+  quota_bytes: 10737418240,
+  webhook_url: ''
 })
+const savingSettings = ref(false)
 
-const navigateToPrefix = (newPrefix) => {
-  activePrefix.value = newPrefix
-  router.push({
-    path: `/r2/${bucket.value.id}`,
-    query: newPrefix ? { prefix: newPrefix } : {}
-  })
-}
+const showUploadModal = ref(false)
+const uploadKey = ref('')
+const uploadFile = ref(null)
+const uploading = ref(false)
+const uploadError = ref('')
 
-// Hierarchical object database
-const rawDatabase = ref([
-  {
-    key: 'thumbnails/',
-    isFolder: true,
-    size: '—',
-    storageClass: '—',
-    modified: '—'
-  },
-  {
-    key: 'thumbnails/6208/',
-    isFolder: true,
-    size: '—',
-    storageClass: '—',
-    modified: '—'
-  },
-  {
-    key: 'thumbnails/6208/thumb.jpg',
-    isFolder: false,
-    size: '106.31 kB',
-    storageClass: 'Standard',
-    modified: 'Nov 04, 2026, 03:42 PM'
-  },
-  {
-    key: 'thumbnails/6208/banner.png',
-    isFolder: false,
-    size: '412.50 kB',
-    storageClass: 'Standard',
-    modified: 'Nov 04, 2026, 03:45 PM'
-  },
-  {
-    key: '6208/',
-    isFolder: true,
-    size: '—',
-    storageClass: '—',
-    modified: '—'
-  },
-  {
-    key: 'frontend-bundle.tar.gz',
-    isFolder: false,
-    size: '14.24 MB',
-    storageClass: 'Standard',
-    modified: 'Nov 22, 2026, 03:22 PM'
-  },
-  {
-    key: 'thumb.jpg',
-    isFolder: false,
-    size: '11.53 kB',
-    storageClass: 'Standard',
-    modified: 'Nov 20, 2026, 11:15 AM'
-  },
-  {
-    key: 'dataset-2026-q4.parquet',
-    isFolder: false,
-    size: '35.70 MB',
-    storageClass: 'Standard',
-    modified: 'Nov 18, 2026, 08:40 PM'
-  }
-])
+const showPresignModal = ref(false)
+const presignKey = ref('')
+const presignTTL = ref(3600)
+const presignUrl = ref('')
 
-// Filter items according to active prefix and view mode
+const showDeleteDialog = ref(false)
+const objectToDelete = ref('')
+
+const s3BucketUrl = computed(() => `${window.location.origin}/s3/${bucketName.value}`)
+
+const objectColumns = [
+  { key: 'key', label: 'Key' },
+  { key: 'size', label: 'Size', width: '110px' },
+  { key: 'modified', label: 'Last Modified', width: '170px' }
+]
+
+const versionColumns = [
+  { key: 'object_key', label: 'Object Key' },
+  { key: 'type', label: 'Type', width: '125px' },
+  { key: 'size_bytes', label: 'Size', width: '100px' },
+  { key: 'created_at', label: 'Archived At', width: '165px' }
+]
+
 const filteredObjects = computed(() => {
-  const currentP = activePrefix.value
-  let pool = []
-
-  if (!viewPrefixesAsFolders.value) {
-    // Flat view: all files shown with full keys
-    pool = rawDatabase.value.filter(o => !o.isFolder)
-  } else if (!currentP) {
-    // Root level view
-    pool = [
-      { key: 'thumbnails/', isFolder: true, size: '—', storageClass: '—', modified: '—' },
-      { key: '6208/', isFolder: true, size: '—', storageClass: '—', modified: '—' },
-      { key: 'frontend-bundle.tar.gz', isFolder: false, size: '14.24 MB', storageClass: 'Standard', modified: 'Nov 22, 2026, 03:22 PM' },
-      { key: 'thumb.jpg', isFolder: false, size: '11.53 kB', storageClass: 'Standard', modified: 'Nov 20, 2026, 11:15 AM' },
-      { key: 'dataset-2026-q4.parquet', isFolder: false, size: '35.70 MB', storageClass: 'Standard', modified: 'Nov 18, 2026, 08:40 PM' }
-    ]
-  } else if (currentP === 'thumbnails/') {
-    // Inside thumbnails/
-    pool = [
-      { key: '6208/', isFolder: true, fullKey: 'thumbnails/6208/', size: '—', storageClass: '—', modified: '—' }
-    ]
-  } else if (currentP === 'thumbnails/6208/') {
-    // Inside thumbnails/6208/
-    pool = [
-      { key: 'thumb.jpg', isFolder: false, fullKey: 'thumbnails/6208/thumb.jpg', size: '106.31 kB', storageClass: 'Standard', modified: 'Nov 04, 2026, 03:42 PM' },
-      { key: 'banner.png', isFolder: false, fullKey: 'thumbnails/6208/banner.png', size: '412.50 kB', storageClass: 'Standard', modified: 'Nov 04, 2026, 03:45 PM' }
-    ]
-  } else {
-    pool = []
-  }
-
-  const q = searchPrefix.value.toLowerCase().trim()
-  if (!q) return pool
-  return pool.filter(o => o.key.toLowerCase().includes(q))
+  const q = searchPrefix.value.trim().toLowerCase()
+  if (!q) return objects.value
+  return objects.value.filter(o => o.key.toLowerCase().includes(q))
 })
 
-const isAllSelected = computed(() => {
-  return filteredObjects.value.length > 0 && selectedKeys.value.length === filteredObjects.value.length
+const filteredVersions = computed(() => {
+  const q = versionKeyFilter.value.trim().toLowerCase()
+  if (!q) return versions.value
+  return versions.value.filter(v => v.object_key.toLowerCase().includes(q))
 })
 
-const toggleSelectAll = () => {
-  if (isAllSelected.value) {
-    selectedKeys.value = []
-  } else {
-    selectedKeys.value = filteredObjects.value.map(o => o.key)
-  }
+const quotaPercent = computed(() => {
+  if (!bucket.value.quota_bytes || bucket.value.quota_bytes <= 0) return 0
+  return Math.min(100, Math.round((bucket.value.used_bytes / bucket.value.quota_bytes) * 100))
+})
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
 }
 
-const toggleSelect = (key) => {
-  const idx = selectedKeys.value.indexOf(key)
-  if (idx > -1) {
-    selectedKeys.value.splice(idx, 1)
-  } else {
-    selectedKeys.value.push(key)
-  }
+function formatDate(raw) {
+  if (!raw) return '—'
+  return new Date(raw).toLocaleString()
 }
 
-const toggleRowMenu = (key) => {
-  activeRowMenuKey.value = activeRowMenuKey.value === key ? null : key
+function parseListObjectsXml(xmlText) {
+  const doc = new DOMParser().parseFromString(xmlText, 'application/xml')
+  return Array.from(doc.querySelectorAll('Contents')).map(n => ({
+    key: n.querySelector('Key')?.textContent || '',
+    size: Number(n.querySelector('Size')?.textContent || 0),
+    modified: formatDate(n.querySelector('LastModified')?.textContent || '')
+  })).filter(o => o.key)
 }
 
-const copyText = async (text, key) => {
+async function loadAll() {
+  loading.value = true
+  actionError.value = ''
   try {
-    await navigator.clipboard.writeText(text)
-    copiedKey.value = key
-    setTimeout(() => {
-      if (copiedKey.value === key) copiedKey.value = ''
-    }, 2000)
-  } catch (err) {
-    console.warn(err)
+    const [detailRes, listRes] = await Promise.all([
+      apiFetch(`/api/v1/storage/buckets/${encodeURIComponent(bucketName.value)}`),
+      apiFetch(`/s3/${encodeURIComponent(bucketName.value)}?list-type=2`)
+    ])
+    if (detailRes.ok) {
+      const data = await detailRes.json()
+      bucket.value = data.bucket
+      objectCount.value = data.object_count || 0
+      versionCount.value = data.version_count || 0
+      region.value = data.region || 'us-east-1'
+      settingsForm.value = {
+        is_public: !!data.bucket.is_public,
+        versioning_enabled: !!data.bucket.versioning_enabled,
+        object_lock_enabled: !!data.bucket.object_lock_enabled,
+        retention_days: data.bucket.retention_days || 7,
+        lifecycle_days: data.bucket.lifecycle_days || 0,
+        quota_bytes: data.bucket.quota_bytes ?? 10737418240,
+        webhook_url: data.bucket.webhook_url || ''
+      }
+    }
+    if (listRes.ok) {
+      objects.value = parseListObjectsXml(await listRes.text())
+    }
+  } catch (e) {
+    actionError.value = e.message
+  } finally {
+    loading.value = false
   }
 }
 
-const triggerFileInput = () => {
-  fileInput.value?.click()
+async function fetchVersions() {
+  const res = await apiFetch(`/api/v1/storage/buckets/${encodeURIComponent(bucketName.value)}/versions`)
+  if (res.ok) {
+    const data = await res.json()
+    versions.value = data.versions || []
+    versionCount.value = versions.value.length
+  }
 }
 
-const handleFileUpload = (e) => {
-  const files = e.target.files
-  if (!files || files.length === 0) return
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i]
-    rawDatabase.value.unshift({
-      key: (activePrefix.value ? activePrefix.value : '') + f.name,
-      isFolder: false,
-      size: `${(f.size / 1024).toFixed(2)} kB`,
-      storageClass: 'Standard',
-      modified: 'Just now'
+function viewKeyVersions(key) {
+  versionKeyFilter.value = key
+  activeTab.value = 'versions'
+  fetchVersions()
+}
+
+function enableAllAdvanced() {
+  settingsForm.value.versioning_enabled = true
+  settingsForm.value.object_lock_enabled = true
+  if (!settingsForm.value.retention_days || settingsForm.value.retention_days < 1) {
+    settingsForm.value.retention_days = 7
+  }
+  if (!settingsForm.value.lifecycle_days || settingsForm.value.lifecycle_days < 1) {
+    settingsForm.value.lifecycle_days = 30
+  }
+}
+
+async function saveSettings() {
+  savingSettings.value = true
+  actionError.value = ''
+  actionSuccess.value = ''
+  try {
+    const res = await apiFetch(`/api/v1/storage/buckets/${encodeURIComponent(bucketName.value)}/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settingsForm.value)
     })
+    if (!res.ok) throw new Error(await res.text())
+    actionSuccess.value = 'Bucket settings saved and active.'
+    await loadAll()
+  } catch (e) {
+    actionError.value = e.message
+  } finally {
+    savingSettings.value = false
   }
-  showUploadDropzone.value = false
-  alert(`Uploaded ${files.length} file(s) successfully.`)
 }
 
-const createFolder = () => {
-  if (!newFolderName.value.trim()) return
-  const clean = newFolderName.value.trim().replace(/\/+$/, '') + '/'
-  const targetKey = (activePrefix.value ? activePrefix.value : '') + clean
-  rawDatabase.value.unshift({
-    key: targetKey,
-    isFolder: true,
-    size: '—',
-    storageClass: '—',
-    modified: '—'
+async function runLifecycleNow() {
+  actionError.value = ''
+  actionSuccess.value = ''
+  const res = await apiFetch(`/api/v1/storage/buckets/${encodeURIComponent(bucketName.value)}/lifecycle/run`, {
+    method: 'POST'
   })
-  showAddFolderModal.value = false
-  newFolderName.value = ''
-}
-
-const deleteSelected = () => {
-  if (confirm(`Delete ${selectedKeys.value.length} selected object(s)?`)) {
-    selectedKeys.value = []
+  if (res.ok) {
+    const data = await res.json()
+    actionSuccess.value = `Lifecycle run complete: ${data.expired_count} expired object(s) removed.`
+    await loadAll()
   }
 }
 
-const deleteSingleObj = (obj) => {
-  const full = obj.fullKey || obj.key
-  if (confirm(`Permanently delete "${full}"?`)) {
-    activeRowMenuKey.value = null
+function onFilePicked(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  uploadFile.value = file
+  if (!uploadKey.value) uploadKey.value = file.name
+}
+
+async function uploadObject() {
+  uploadError.value = ''
+  if (!uploadKey.value.trim() || !uploadFile.value) {
+    uploadError.value = 'Both object key and file are required.'
+    return
   }
-}
-
-const downloadObj = (obj) => {
-  const full = obj.fullKey || obj.key
-  alert(`Downloading "${full}" from Cloudflare R2 edge...`)
-  activeRowMenuKey.value = null
-}
-
-const handleItemClick = (obj) => {
-  if (obj.isFolder) {
-    const nextPrefix = obj.fullKey || (activePrefix.value + obj.key)
-    navigateToPrefix(nextPrefix)
-  } else {
-    // Navigate to Cloudflare Deep Object Details Page
-    const targetKey = obj.fullKey || (activePrefix.value ? activePrefix.value + obj.key : obj.key)
-    router.push({
-      path: `/r2/${bucket.value.id}/objects/${encodeURIComponent(targetKey)}/details`,
-      query: activePrefix.value ? { prefix: activePrefix.value } : {}
+  uploading.value = true
+  try {
+    const res = await apiFetch(`/s3/${encodeURIComponent(bucketName.value)}/${uploadKey.value.trim()}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': uploadFile.value.type || 'application/octet-stream' },
+      body: uploadFile.value
     })
+    if (!res.ok) throw new Error(await res.text())
+    showUploadModal.value = false
+    uploadKey.value = ''
+    uploadFile.value = null
+    actionSuccess.value = 'Object uploaded successfully.'
+    await loadAll()
+  } catch (e) {
+    uploadError.value = e.message
+  } finally {
+    uploading.value = false
   }
 }
 
-const emptyBucket = () => {
-  if (confirm('Are you sure you want to empty this bucket? All objects and folders will be deleted permanently.')) {
-    rawDatabase.value = []
-    alert('Bucket emptied successfully.')
+async function downloadObject(key) {
+  const res = await apiFetch(`/s3/${encodeURIComponent(bucketName.value)}/${key}`)
+  if (!res.ok) {
+    actionError.value = `Download failed (HTTP ${res.status})`
+    return
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = key.split('/').pop() || 'object'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function openPresign(key) {
+  presignKey.value = key
+  presignUrl.value = ''
+  showPresignModal.value = true
+  generatePresign()
+}
+
+async function generatePresign() {
+  const res = await apiFetch(`/api/v1/storage/buckets/${encodeURIComponent(bucketName.value)}/presign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: presignKey.value, method: 'GET', expires_seconds: presignTTL.value })
+  })
+  if (res.ok) {
+    const data = await res.json()
+    presignUrl.value = data.url
   }
 }
 
-const deleteBucket = () => {
-  if (confirm(`Are you sure you want to delete bucket "${bucket.value.name}"? This action cannot be undone.`)) {
-    router.push('/r2')
+function promptDeleteObject(key) {
+  objectToDelete.value = key
+  showDeleteDialog.value = true
+}
+
+async function confirmDeleteObject() {
+  actionError.value = ''
+  actionSuccess.value = ''
+  const res = await apiFetch(`/s3/${encodeURIComponent(bucketName.value)}/${objectToDelete.value}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) {
+    actionError.value = await res.text()
+    return
+  }
+  actionSuccess.value = `Deleted '${objectToDelete.value}'.`
+  await loadAll()
+  if (bucket.value.versioning_enabled) await fetchVersions()
+}
+
+async function restoreVersion(versionId) {
+  actionError.value = ''
+  const res = await apiFetch(
+    `/api/v1/storage/buckets/${encodeURIComponent(bucketName.value)}/versions/${encodeURIComponent(versionId)}/restore`,
+    { method: 'POST' }
+  )
+  if (!res.ok) {
+    actionError.value = await res.text()
+    return
+  }
+  actionSuccess.value = `Restored version ${versionId}.`
+  await loadAll()
+  await fetchVersions()
+}
+
+async function purgeVersion(versionId) {
+  const res = await apiFetch(
+    `/api/v1/storage/buckets/${encodeURIComponent(bucketName.value)}/versions/${encodeURIComponent(versionId)}`,
+    { method: 'DELETE' }
+  )
+  if (res.ok) {
+    await fetchVersions()
   }
 }
+
+onMounted(loadAll)
 </script>
+
+<style scoped>
+.cf-bucket-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cf-tabs-bar {
+  display: flex;
+  gap: 0.4rem;
+  border-bottom: 1px solid #e4e4e7;
+  padding-bottom: 0.5rem;
+}
+
+.cf-tab-btn {
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #52525b;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cf-tab-btn.active {
+  background: #ffffff;
+  color: #18181b;
+  border-color: #d4d4d8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.cf-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cf-meta-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.cf-meta-card {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cf-meta-label {
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.cf-meta-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #18181b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.cf-progress-track {
+  height: 10px;
+  background: #f4f4f5;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.cf-progress-fill {
+  height: 100%;
+  background: #0051c3;
+  transition: width 0.25s ease;
+}
+
+.cf-kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.cf-kv-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #52525b;
+}
+
+.cf-settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cf-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid #f4f4f5;
+}
+
+.cf-toggle-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #18181b;
+}
+
+.cf-toggle-desc {
+  font-size: 0.8rem;
+  color: #71717a;
+  margin-top: 0.15rem;
+}
+
+.cf-switch {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.cf-select-input {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 0.875rem;
+}
+</style>

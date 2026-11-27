@@ -7,25 +7,43 @@ import (
 )
 
 type StorageBucket struct {
-	BucketID   string    `json:"bucket_id"`
-	OwnerID    string    `json:"owner_id"`
-	IsPublic   bool      `json:"is_public"`
-	QuotaBytes int64     `json:"quota_bytes"`
-	UsedBytes  int64     `json:"used_bytes"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	BucketID          string    `json:"bucket_id"`
+	OwnerID           string    `json:"owner_id"`
+	IsPublic          bool      `json:"is_public"`
+	QuotaBytes        int64     `json:"quota_bytes"`
+	UsedBytes         int64     `json:"used_bytes"`
+	VersioningEnabled bool      `json:"versioning_enabled"`
+	ObjectLockEnabled bool      `json:"object_lock_enabled"`
+	RetentionDays     int       `json:"retention_days"`
+	LifecycleDays     int       `json:"lifecycle_days"`
+	WebhookURL        string    `json:"webhook_url"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type StorageObject struct {
-	ObjectID    string    `json:"object_id"`
-	BucketID    string    `json:"bucket_id"`
-	ObjectKey   string    `json:"object_key"`
-	SizeBytes   int64     `json:"size_bytes"`
-	ContentType string    `json:"content_type"`
-	ETag        string    `json:"etag"`
-	DiskRelPath string    `json:"disk_rel_path"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ObjectID    string     `json:"object_id"`
+	BucketID    string     `json:"bucket_id"`
+	ObjectKey   string     `json:"object_key"`
+	SizeBytes   int64      `json:"size_bytes"`
+	ContentType string     `json:"content_type"`
+	ETag        string     `json:"etag"`
+	DiskRelPath string     `json:"disk_rel_path"`
+	RetainUntil *time.Time `json:"retain_until,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+type StorageObjectVersion struct {
+	VersionID      string    `json:"version_id"`
+	BucketID       string    `json:"bucket_id"`
+	ObjectKey      string    `json:"object_key"`
+	SizeBytes      int64     `json:"size_bytes"`
+	ContentType    string    `json:"content_type"`
+	ETag           string    `json:"etag"`
+	DiskRelPath    string    `json:"disk_rel_path"`
+	IsDeleteMarker bool      `json:"is_delete_marker"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type StorageStore struct {
@@ -57,13 +75,19 @@ func (s *StorageStore) DeleteBucket(bucketID string) error {
 
 func (s *StorageStore) GetBucket(bucketID string) (*StorageBucket, error) {
 	query := `
-	SELECT bucket_id, owner_id, is_public, quota_bytes, used_bytes, created_at, updated_at
+	SELECT bucket_id, owner_id, is_public, quota_bytes, used_bytes,
+	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url,
+	       created_at, updated_at
 	FROM storage_buckets WHERE bucket_id = ?;
 	`
 	row := s.db.QueryRow(query, bucketID)
 	var b StorageBucket
-	var isPublicInt int
-	err := row.Scan(&b.BucketID, &b.OwnerID, &isPublicInt, &b.QuotaBytes, &b.UsedBytes, &b.CreatedAt, &b.UpdatedAt)
+	var isPublicInt, versioningInt, objectLockInt int
+	err := row.Scan(
+		&b.BucketID, &b.OwnerID, &isPublicInt, &b.QuotaBytes, &b.UsedBytes,
+		&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL,
+		&b.CreatedAt, &b.UpdatedAt,
+	)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -71,12 +95,16 @@ func (s *StorageStore) GetBucket(bucketID string) (*StorageBucket, error) {
 		return nil, err
 	}
 	b.IsPublic = isPublicInt == 1
+	b.VersioningEnabled = versioningInt == 1
+	b.ObjectLockEnabled = objectLockInt == 1
 	return &b, nil
 }
 
 func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 	query := `
-	SELECT bucket_id, owner_id, is_public, quota_bytes, used_bytes, created_at, updated_at
+	SELECT bucket_id, owner_id, is_public, quota_bytes, used_bytes,
+	       versioning_enabled, object_lock_enabled, retention_days, lifecycle_days, webhook_url,
+	       created_at, updated_at
 	FROM storage_buckets ORDER BY created_at DESC;
 	`
 	rows, err := s.db.Query(query)
@@ -88,30 +116,64 @@ func (s *StorageStore) ListBuckets() ([]*StorageBucket, error) {
 	var buckets []*StorageBucket
 	for rows.Next() {
 		var b StorageBucket
-		var isPublicInt int
-		if err := rows.Scan(&b.BucketID, &b.OwnerID, &isPublicInt, &b.QuotaBytes, &b.UsedBytes, &b.CreatedAt, &b.UpdatedAt); err != nil {
+		var isPublicInt, versioningInt, objectLockInt int
+		if err := rows.Scan(
+			&b.BucketID, &b.OwnerID, &isPublicInt, &b.QuotaBytes, &b.UsedBytes,
+			&versioningInt, &objectLockInt, &b.RetentionDays, &b.LifecycleDays, &b.WebhookURL,
+			&b.CreatedAt, &b.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		b.IsPublic = isPublicInt == 1
+		b.VersioningEnabled = versioningInt == 1
+		b.ObjectLockEnabled = objectLockInt == 1
 		buckets = append(buckets, &b)
 	}
 	return buckets, nil
 }
 
+func (s *StorageStore) UpdateBucketSettings(
+	bucketID string,
+	isPublic, versioning, objectLock bool,
+	retentionDays, lifecycleDays int,
+	quotaBytes int64,
+	webhookURL string,
+) error {
+	b2i := func(v bool) int {
+		if v {
+			return 1
+		}
+		return 0
+	}
+	query := `
+	UPDATE storage_buckets
+	SET is_public = ?, versioning_enabled = ?, object_lock_enabled = ?,
+	    retention_days = ?, lifecycle_days = ?, quota_bytes = ?, webhook_url = ?,
+	    updated_at = CURRENT_TIMESTAMP
+	WHERE bucket_id = ?;
+	`
+	_, err := s.db.Exec(query,
+		b2i(isPublic), b2i(versioning), b2i(objectLock),
+		retentionDays, lifecycleDays, quotaBytes, webhookURL, bucketID,
+	)
+	return err
+}
+
 func (s *StorageStore) UpsertObject(o *StorageObject) error {
 	query := `
 	INSERT INTO storage_objects (
-		object_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+		object_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, retain_until, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 	ON CONFLICT(bucket_id, object_key) DO UPDATE SET
 		size_bytes = excluded.size_bytes,
 		content_type = excluded.content_type,
 		etag = excluded.etag,
 		disk_rel_path = excluded.disk_rel_path,
+		retain_until = excluded.retain_until,
 		updated_at = CURRENT_TIMESTAMP;
 	`
 	_, err := s.db.Exec(query,
-		o.ObjectID, o.BucketID, o.ObjectKey, o.SizeBytes, o.ContentType, o.ETag, o.DiskRelPath,
+		o.ObjectID, o.BucketID, o.ObjectKey, o.SizeBytes, o.ContentType, o.ETag, o.DiskRelPath, o.RetainUntil,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert object: %w", err)
@@ -129,17 +191,22 @@ func (s *StorageStore) UpsertObject(o *StorageObject) error {
 
 func (s *StorageStore) GetObject(bucketID, key string) (*StorageObject, error) {
 	query := `
-	SELECT object_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, created_at, updated_at
+	SELECT object_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, retain_until, created_at, updated_at
 	FROM storage_objects WHERE bucket_id = ? AND object_key = ?;
 	`
 	row := s.db.QueryRow(query, bucketID, key)
 	var o StorageObject
-	err := row.Scan(&o.ObjectID, &o.BucketID, &o.ObjectKey, &o.SizeBytes, &o.ContentType, &o.ETag, &o.DiskRelPath, &o.CreatedAt, &o.UpdatedAt)
+	var retainUntil sql.NullTime
+	err := row.Scan(&o.ObjectID, &o.BucketID, &o.ObjectKey, &o.SizeBytes, &o.ContentType, &o.ETag, &o.DiskRelPath, &retainUntil, &o.CreatedAt, &o.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+	if retainUntil.Valid {
+		t := retainUntil.Time
+		o.RetainUntil = &t
 	}
 	return &o, nil
 }
@@ -165,7 +232,7 @@ func (s *StorageStore) ListObjects(bucketID, prefix string, limit int) ([]*Stora
 		limit = 1000
 	}
 	query := `
-	SELECT object_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, created_at, updated_at
+	SELECT object_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, retain_until, created_at, updated_at
 	FROM storage_objects 
 	WHERE bucket_id = ? AND object_key LIKE ?
 	ORDER BY object_key ASC
@@ -180,12 +247,126 @@ func (s *StorageStore) ListObjects(bucketID, prefix string, limit int) ([]*Stora
 	var objects []*StorageObject
 	for rows.Next() {
 		var o StorageObject
-		if err := rows.Scan(&o.ObjectID, &o.BucketID, &o.ObjectKey, &o.SizeBytes, &o.ContentType, &o.ETag, &o.DiskRelPath, &o.CreatedAt, &o.UpdatedAt); err != nil {
+		var retainUntil sql.NullTime
+		if err := rows.Scan(&o.ObjectID, &o.BucketID, &o.ObjectKey, &o.SizeBytes, &o.ContentType, &o.ETag, &o.DiskRelPath, &retainUntil, &o.CreatedAt, &o.UpdatedAt); err != nil {
 			return nil, err
+		}
+		if retainUntil.Valid {
+			t := retainUntil.Time
+			o.RetainUntil = &t
 		}
 		objects = append(objects, &o)
 	}
 	return objects, nil
+}
+
+func (s *StorageStore) CountObjects(bucketID string) (int, error) {
+	var count int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM storage_objects WHERE bucket_id = ?;`, bucketID).Scan(&count)
+	return count, err
+}
+
+func (s *StorageStore) SaveObjectVersion(v *StorageObjectVersion) error {
+	dm := 0
+	if v.IsDeleteMarker {
+		dm = 1
+	}
+	query := `
+	INSERT INTO storage_object_versions (
+		version_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, is_delete_marker
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+	`
+	_, err := s.db.Exec(query, v.VersionID, v.BucketID, v.ObjectKey, v.SizeBytes, v.ContentType, v.ETag, v.DiskRelPath, dm)
+	return err
+}
+
+func (s *StorageStore) ListObjectVersions(bucketID, objectKey string) ([]*StorageObjectVersion, error) {
+	var query string
+	var args []any
+	if objectKey != "" {
+		query = `
+		SELECT version_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, is_delete_marker, created_at
+		FROM storage_object_versions
+		WHERE bucket_id = ? AND object_key = ?
+		ORDER BY created_at DESC LIMIT 200;`
+		args = []any{bucketID, objectKey}
+	} else {
+		query = `
+		SELECT version_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, is_delete_marker, created_at
+		FROM storage_object_versions
+		WHERE bucket_id = ?
+		ORDER BY created_at DESC LIMIT 200;`
+		args = []any{bucketID}
+	}
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var versions []*StorageObjectVersion
+	for rows.Next() {
+		var v StorageObjectVersion
+		var dm int
+		if err := rows.Scan(&v.VersionID, &v.BucketID, &v.ObjectKey, &v.SizeBytes, &v.ContentType, &v.ETag, &v.DiskRelPath, &dm, &v.CreatedAt); err != nil {
+			return nil, err
+		}
+		v.IsDeleteMarker = dm == 1
+		versions = append(versions, &v)
+	}
+	return versions, nil
+}
+
+func (s *StorageStore) GetObjectVersion(bucketID, versionID string) (*StorageObjectVersion, error) {
+	query := `
+	SELECT version_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, is_delete_marker, created_at
+	FROM storage_object_versions
+	WHERE bucket_id = ? AND version_id = ?;`
+	var v StorageObjectVersion
+	var dm int
+	err := s.db.QueryRow(query, bucketID, versionID).Scan(
+		&v.VersionID, &v.BucketID, &v.ObjectKey, &v.SizeBytes, &v.ContentType, &v.ETag, &v.DiskRelPath, &dm, &v.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	v.IsDeleteMarker = dm == 1
+	return &v, nil
+}
+
+func (s *StorageStore) DeleteObjectVersion(bucketID, versionID string) error {
+	_, err := s.db.Exec(`DELETE FROM storage_object_versions WHERE bucket_id = ? AND version_id = ?;`, bucketID, versionID)
+	return err
+}
+
+func (s *StorageStore) ListExpiredObjects(bucketID string, olderThan time.Time) ([]*StorageObject, error) {
+	query := `
+	SELECT object_id, bucket_id, object_key, size_bytes, content_type, etag, disk_rel_path, retain_until, created_at, updated_at
+	FROM storage_objects
+	WHERE bucket_id = ? AND updated_at < ?;`
+	rows, err := s.db.Query(query, bucketID, olderThan.UTC())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []*StorageObject
+	for rows.Next() {
+		var o StorageObject
+		var retainUntil sql.NullTime
+		if err := rows.Scan(&o.ObjectID, &o.BucketID, &o.ObjectKey, &o.SizeBytes, &o.ContentType, &o.ETag, &o.DiskRelPath, &retainUntil, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			return nil, err
+		}
+		if retainUntil.Valid {
+			t := retainUntil.Time
+			o.RetainUntil = &t
+		}
+		out = append(out, &o)
+	}
+	return out, nil
 }
 
 type MultipartPartRecord struct {

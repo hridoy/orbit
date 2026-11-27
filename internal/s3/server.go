@@ -65,6 +65,8 @@ func (s *S3Engine) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/s3/", s.handleS3Dispatch)
 	// Admin-only: reveal the S3 access key and secret (behind the global bearer auth).
 	mux.HandleFunc("GET /api/v1/storage/credentials", s.handleCredentials)
+	// Admin-only: advanced bucket settings, versioning, presign, and lifecycle routes.
+	s.registerAdvancedRoutes(mux)
 }
 
 func (s *S3Engine) handleCredentials(w http.ResponseWriter, r *http.Request) {
@@ -234,7 +236,7 @@ func validObjectKey(key string) bool {
 		return false
 	}
 	first := strings.SplitN(strings.TrimPrefix(clean, "/"), "/", 2)[0]
-	return first != ".multipart" && !strings.HasPrefix(first, ".s3_upload_")
+	return first != ".multipart" && first != ".versions" && !strings.HasPrefix(first, ".s3_upload_")
 }
 
 func validUploadID(id string) bool {
@@ -444,6 +446,27 @@ func (s *S3Engine) handleListObjectsV2(w http.ResponseWriter, r *http.Request, b
 // ----------------------------------------------------------------------------
 
 func (s *S3Engine) handlePutObject(w http.ResponseWriter, r *http.Request, bucketName, objectKey, expectSHA string) {
+	bucket, _ := s.store.GetBucket(bucketName)
+	existing, _ := s.store.GetObject(bucketName, objectKey)
+
+	// Enforce Object Lock on overwrite if existing object is still retained
+	if existing != nil && existing.RetainUntil != nil && existing.RetainUntil.After(time.Now()) {
+		writeS3Error(w, http.StatusForbidden, "AccessDenied", "Object is locked by WORM retention until "+existing.RetainUntil.UTC().Format(time.RFC3339))
+		return
+	}
+
+	// Pre-check quota when Content-Length is known
+	if bucket != nil && bucket.QuotaBytes > 0 && r.ContentLength > 0 {
+		existingSize := int64(0)
+		if existing != nil {
+			existingSize = existing.SizeBytes
+		}
+		if bucket.UsedBytes-existingSize+r.ContentLength > bucket.QuotaBytes {
+			writeS3Error(w, http.StatusInsufficientStorage, "QuotaExceeded", "Bucket storage quota exceeded.")
+			return
+		}
+	}
+
 	bucketDir := s.BucketDir(bucketName)
 	if err := os.MkdirAll(bucketDir, 0700); err != nil {
 		writeS3Error(w, http.StatusInternalServerError, "InternalError", err.Error())
@@ -475,6 +498,18 @@ func (s *S3Engine) handlePutObject(w http.ResponseWriter, r *http.Request, bucke
 		return
 	}
 
+	// Post-write quota check (handles chunked uploads without Content-Length)
+	if bucket != nil && bucket.QuotaBytes > 0 {
+		existingSize := int64(0)
+		if existing != nil {
+			existingSize = existing.SizeBytes
+		}
+		if bucket.UsedBytes-existingSize+written > bucket.QuotaBytes {
+			writeS3Error(w, http.StatusInsufficientStorage, "QuotaExceeded", "Bucket storage quota exceeded.")
+			return
+		}
+	}
+
 	if err := tmpFile.Sync(); err != nil {
 		writeS3Error(w, http.StatusInternalServerError, "InternalError", err.Error())
 		return
@@ -482,6 +517,11 @@ func (s *S3Engine) handlePutObject(w http.ResponseWriter, r *http.Request, bucke
 	if err := tmpFile.Close(); err != nil {
 		writeS3Error(w, http.StatusInternalServerError, "InternalError", err.Error())
 		return
+	}
+
+	// Archive previous version before replacing on disk when Versioning is enabled
+	if bucket != nil && bucket.VersioningEnabled && existing != nil {
+		_ = s.archiveObjectVersion(bucketName, existing)
 	}
 
 	if err := os.Rename(tmpFile.Name(), dstPath); err != nil {
@@ -494,6 +534,12 @@ func (s *S3Engine) handlePutObject(w http.ResponseWriter, r *http.Request, bucke
 		contentType = normalizeContentType(mime.TypeByExtension(filepath.Ext(objectKey)))
 	}
 
+	var retainUntil *time.Time
+	if bucket != nil && bucket.ObjectLockEnabled && bucket.RetentionDays > 0 {
+		t := time.Now().UTC().Add(time.Duration(bucket.RetentionDays) * 24 * time.Hour)
+		retainUntil = &t
+	}
+
 	obj := &db.StorageObject{
 		ObjectID:    fmt.Sprintf("obj_%s", md5Hex),
 		BucketID:    bucketName,
@@ -502,11 +548,16 @@ func (s *S3Engine) handlePutObject(w http.ResponseWriter, r *http.Request, bucke
 		ContentType: contentType,
 		ETag:        md5Hex,
 		DiskRelPath: cleanKey,
+		RetainUntil: retainUntil,
 	}
 
 	if err := s.store.UpsertObject(obj); err != nil {
 		writeS3Error(w, http.StatusInternalServerError, "InternalError", err.Error())
 		return
+	}
+
+	if bucket != nil && bucket.WebhookURL != "" {
+		go s.emitWebhook(bucket.WebhookURL, "s3:ObjectCreated:Put", bucketName, objectKey, written, md5Hex)
 	}
 
 	w.Header().Set("ETag", fmt.Sprintf("\"%s\"", md5Hex))
@@ -587,11 +638,23 @@ func (s *S3Engine) handleHeadObject(w http.ResponseWriter, r *http.Request, buck
 }
 
 func (s *S3Engine) handleDeleteObject(w http.ResponseWriter, r *http.Request, bucketName, objectKey string) {
+	bucket, _ := s.store.GetBucket(bucketName)
 	obj, _ := s.store.GetObject(bucketName, objectKey)
 	if obj != nil {
+		if obj.RetainUntil != nil && obj.RetainUntil.After(time.Now()) {
+			writeS3Error(w, http.StatusForbidden, "AccessDenied", "Object is locked by WORM retention until "+obj.RetainUntil.UTC().Format(time.RFC3339))
+			return
+		}
+		if bucket != nil && bucket.VersioningEnabled {
+			_ = s.archiveObjectVersion(bucketName, obj)
+			s.recordDeleteMarker(bucketName, objectKey)
+		}
 		filePath := filepath.Join(s.BucketDir(bucketName), obj.DiskRelPath)
 		_ = os.Remove(filePath)
 		_ = s.store.DeleteObject(bucketName, objectKey)
+		if bucket != nil && bucket.WebhookURL != "" {
+			go s.emitWebhook(bucket.WebhookURL, "s3:ObjectRemoved:Delete", bucketName, objectKey, 0, "")
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

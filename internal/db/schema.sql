@@ -91,6 +91,11 @@ CREATE TABLE IF NOT EXISTS storage_buckets (
     is_public           INTEGER NOT NULL DEFAULT 0,
     quota_bytes         INTEGER NOT NULL DEFAULT 10737418240,
     used_bytes          INTEGER NOT NULL DEFAULT 0,
+    versioning_enabled  INTEGER NOT NULL DEFAULT 0,
+    object_lock_enabled INTEGER NOT NULL DEFAULT 0,
+    retention_days      INTEGER NOT NULL DEFAULT 0,
+    lifecycle_days      INTEGER NOT NULL DEFAULT 0,
+    webhook_url         TEXT NOT NULL DEFAULT '',
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -103,6 +108,7 @@ CREATE TABLE IF NOT EXISTS storage_objects (
     content_type        TEXT NOT NULL DEFAULT 'application/octet-stream',
     etag                TEXT NOT NULL,
     disk_rel_path       TEXT NOT NULL,
+    retain_until        DATETIME,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(bucket_id) REFERENCES storage_buckets(bucket_id) ON DELETE CASCADE,
@@ -110,6 +116,21 @@ CREATE TABLE IF NOT EXISTS storage_objects (
 );
 
 CREATE INDEX IF NOT EXISTS idx_storage_objects_lookup ON storage_objects(bucket_id, object_key);
+
+CREATE TABLE IF NOT EXISTS storage_object_versions (
+    version_id          TEXT PRIMARY KEY,
+    bucket_id           TEXT NOT NULL,
+    object_key          TEXT NOT NULL,
+    size_bytes          INTEGER NOT NULL,
+    content_type        TEXT NOT NULL DEFAULT 'application/octet-stream',
+    etag                TEXT NOT NULL,
+    disk_rel_path       TEXT NOT NULL,
+    is_delete_marker    INTEGER NOT NULL DEFAULT 0,
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(bucket_id) REFERENCES storage_buckets(bucket_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_storage_versions_lookup ON storage_object_versions(bucket_id, object_key, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS storage_multipart_uploads (
     upload_id           TEXT PRIMARY KEY,
