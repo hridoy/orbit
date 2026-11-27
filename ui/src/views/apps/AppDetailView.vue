@@ -365,22 +365,17 @@
     </div>
 
     <!-- ================================================================ -->
-    <!-- TAB 4: LOGS (Observability)                                       -->
+    <!-- TAB 4: LOGS (Observability using CfLogViewer from cloudflare-ui)  -->
     <!-- ================================================================ -->
     <div v-else-if="activeTab === 'logs'" class="cf-ad-stack">
-      <CfCard title="Observability & Live Logs" subtitle="Real-time stdout/stderr stream from the Orbit process runner">
-        <template #actions>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <CfBadge variant="success" dot size="sm">Live Stream</CfBadge>
-            <CfButton variant="secondary" size="sm" icon="refresh" @click="fetchLogs">Reload</CfButton>
-            <CfButton variant="outline" size="sm" @click="logs = []">Clear</CfButton>
-          </div>
-        </template>
-        <div class="app-log-terminal">
-          <div v-if="!logs.length" style="color: #94a3b8;">No logs recorded yet for {{ appId }}.</div>
-          <div v-for="(line, i) in logs" :key="i" class="app-log-line">{{ line }}</div>
-        </div>
-      </CfCard>
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+        <CfButton variant="secondary" size="sm" icon="refresh" @click="fetchLogs">Reload</CfButton>
+      </div>
+      <CfLogViewer
+        :title="`${app.name || appId} — Live Stream`"
+        :logs="formattedLogs"
+        @clear="logs = []"
+      />
     </div>
 
     <!-- ================================================================ -->
@@ -577,6 +572,14 @@ const bindingColumns = [
   { key: 'name', label: 'Name', width: '140px' },
   { key: 'target', label: 'Resource' }
 ]
+
+const formattedLogs = computed(() =>
+  logs.value.map(line => ({
+    time: new Date().toLocaleTimeString([], { hour12: false }),
+    level: line.toLowerCase().includes('error') ? 'error' : 'info',
+    message: line
+  }))
+)
 
 const deployments = computed(() => [
   {

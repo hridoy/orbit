@@ -1,0 +1,1 @@
+function o(){try{return localStorage.getItem("orbit_token")||""}catch{return""}}function a(t){try{t||localStorage.removeItem("orbit_token")}catch{}}function c(t={}){const e=o();return e?{Authorization:`Bearer ${e}`,...t}:{...t}}async function s(t,e={}){const n=c(e.headers||{}),r=await fetch(t,{...e,headers:n});return r.status===401&&a(""),r}export{s as a};
