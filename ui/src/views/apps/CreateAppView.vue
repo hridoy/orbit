@@ -39,7 +39,7 @@
           <div class="cf-pages-card">
             <div class="cf-pages-card-left">
               <div class="cf-opt-icon-box">
-                <CfIcon name="upload" size="16" style="color: #d97706;" />
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
               </div>
               <div>
                 <div class="cf-pages-card-title">Drag and drop your files</div>
@@ -95,7 +95,7 @@
 
                 <button type="button" class="cf-option-row" @click="step = 'upload'">
                   <span class="cf-opt-icon-box">
-                    <CfIcon name="upload" size="15" style="color: #d97706;" />
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                   </span>
                   <span class="cf-opt-label">Upload your static files</span>
                 </button>
@@ -341,7 +341,7 @@
                 <label class="cf-dropzone">
                   <input type="file" multiple style="display: none;" @change="onStaticFilesPicked" />
                   <div class="cf-opt-icon-box" style="margin: 0 auto 0.65rem;">
-                    <CfIcon name="upload" size="16" style="color: #d97706;" />
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                   </div>
                   <div style="font-size: 0.875rem; color: #111827;">
                     Drag in or click to upload a <strong style="text-decoration: underline;">file</strong> or <strong style="text-decoration: underline;">folder</strong>.
