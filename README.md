@@ -120,3 +120,5 @@ orbit logs api-service -f
 - **In-Memory Encrypted Vault:** Secrets are encrypted on disk via AES-256-GCM. Plaintext is never stored in `.env` files; secrets are decrypted and injected directly into child process memory at runtime.
 - **Dedicated Non-Root OS Users:** Applications run under dedicated system users (`orbit-app-<id>`).
 - **Internal Only Databases:** Database engines never bind to `0.0.0.0`; all instances bind strictly to `127.0.0.1` and local Unix domain sockets for zero-latency IPC.
+- **Encrypted Off-Host Backups:** Backups include `master.key`, so the cloud copy must be encrypted. Create an rclone `crypt` remote that wraps your Drive, Dropbox, OneDrive, or S3 remote (`rclone config`, type `crypt`, with a strong password), then use that crypt remote name as the Cloud backup remote path (for example `secure:orbit-backups`). Store the crypt password safely; without it the cloud copies cannot be restored.
+- **Token on the CLI:** Pass the token with `ORBIT_TOKEN`, not `--token`. The flag is kept for compatibility, but it exposes the token in the process list and shell history.

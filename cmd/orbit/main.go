@@ -22,7 +22,8 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("Flags:")
 	fmt.Println("  --server=<url>            Orbit Agent server URL (default: http://127.0.0.1:8787)")
-	fmt.Println("  --token=<token>           Ed25519 or Master Key (auto-discovered on local host)")
+	fmt.Println("  --token=<token>           Ed25519 token (deprecated: visible in process list and shell history)")
+	fmt.Println("                            Prefer: export ORBIT_TOKEN=<token>. Auto-discovered on the host.")
 	fmt.Println("  --app=<app_id>            Target application slug")
 	fmt.Println("  --follow, -f              Stream logs in real-time (SSE)")
 	fmt.Println("  --engine=<engine>         Database engine: postgres or mongodb (default: postgres)")
@@ -85,6 +86,12 @@ func main() {
 	}
 }
 
+// warnTokenFlag tells the operator that a token on the command line is exposed to other local
+// users through the process list and saved in shell history. ORBIT_TOKEN avoids both.
+func warnTokenFlag() {
+	fmt.Fprintln(os.Stderr, "warning: --token exposes the token in the process list and shell history; use ORBIT_TOKEN instead")
+}
+
 func parseArgs(rawArgs []string) (serverURL, token, appID, engine, profile string, follow bool, positional []string) {
 	for i := 0; i < len(rawArgs); i++ {
 		arg := rawArgs[i]
@@ -95,8 +102,10 @@ func parseArgs(rawArgs []string) (serverURL, token, appID, engine, profile strin
 			i++
 		} else if strings.HasPrefix(arg, "--token=") {
 			token = strings.TrimPrefix(arg, "--token=")
+			warnTokenFlag()
 		} else if arg == "--token" && i+1 < len(rawArgs) {
 			token = rawArgs[i+1]
+			warnTokenFlag()
 			i++
 		} else if strings.HasPrefix(arg, "--app=") {
 			appID = strings.TrimPrefix(arg, "--app=")
