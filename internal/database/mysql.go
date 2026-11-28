@@ -97,14 +97,24 @@ func (e *MySQLEngine) Provision(
 	entries, _ := os.ReadDir(dataDir)
 	if len(entries) == 0 {
 		_ = chownDBTree(baseDir)
+		// --no-defaults keeps host config (such as /etc/mysql) from breaking the first start.
+		// Failures are returned: an uninitialized data dir starts with no system tables and
+		// every later start fails.
+		var cmd *exec.Cmd
 		if isMariaDB && e.initDbBin != "" {
-			cmd := exec.CommandContext(ctx, e.initDbBin, fmt.Sprintf("--datadir=%s", dataDir), "--auth-root-authentication-method=normal")
-			_ = applyDBUser(cmd)
-			_ = cmd.Run()
+			base := filepath.Dir(filepath.Dir(e.mariadbdBin))
+			cmd = exec.CommandContext(ctx, e.initDbBin, "--no-defaults", "--auth-root-authentication-method=normal",
+				fmt.Sprintf("--basedir=%s", base), fmt.Sprintf("--datadir=%s", dataDir))
 		} else if e.mysqldBin != "" {
-			cmd := exec.CommandContext(ctx, e.mysqldBin, "--no-defaults", "--initialize-insecure", fmt.Sprintf("--datadir=%s", dataDir))
-			_ = applyDBUser(cmd)
-			_ = cmd.Run()
+			cmd = exec.CommandContext(ctx, e.mysqldBin, "--no-defaults", "--initialize-insecure", fmt.Sprintf("--datadir=%s", dataDir))
+		}
+		if cmd != nil {
+			if err := applyDBUser(cmd); err != nil {
+				return err
+			}
+			if out, err := cmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("initialize data directory: %w: %s", err, tail(out))
+			}
 		}
 	}
 
