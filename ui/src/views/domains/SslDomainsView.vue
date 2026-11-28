@@ -20,15 +20,13 @@
     <p v-if="notice" class="tls-notice">{{ notice }}</p>
 
     <form v-if="showForm" class="tls-card tls-form" @submit.prevent="add">
-      <label>
-        Domain
-        <div class="tls-inline">
-          <input v-model="form.domain" required placeholder="app.example.com" @change="detect" />
+      <CfInput v-model="form.domain" label="Domain" required placeholder="app.example.com" @change="detect">
+        <template #suffix>
           <button class="btn-cf btn-cf-secondary" type="button" :disabled="!form.domain || detecting" @click="detect">
             {{ detecting ? 'Checking…' : 'Check' }}
           </button>
-        </div>
-      </label>
+        </template>
+      </CfInput>
 
       <div v-if="detection" class="tls-detect">
         <span v-if="detection.cloudflare">Cloudflare detected. Recommended: <strong>Cloudflare Origin Certificate</strong>.</span>
@@ -36,24 +34,23 @@
         <span class="tls-muted">Resolves to {{ detection.ips.join(', ') }}</span>
       </div>
 
-      <label>
-        Certificate provider
-        <select v-model="form.provider">
-          <option value="letsencrypt">Let's Encrypt (free, automatic)</option>
-          <option value="zerossl">ZeroSSL (free, automatic, needs EAB keys)</option>
-          <option value="cloudflare_origin">Cloudflare Origin Certificate (paste)</option>
-        </select>
-      </label>
+      <CfSelect
+        v-model="form.provider"
+        label="Certificate provider"
+        :options="[
+          { value: 'letsencrypt', label: 'Let’s Encrypt (free, automatic)' },
+          { value: 'zerossl', label: 'ZeroSSL (free, automatic, needs EAB keys)' },
+          { value: 'cloudflare_origin', label: 'Cloudflare Origin Certificate (paste)' },
+        ]"
+      />
 
       <template v-if="form.provider === 'zerossl'">
-        <label>EAB key ID <input v-model="form.eab_kid" required autocomplete="off" /></label>
-        <label>EAB HMAC key <input v-model="form.eab_hmac" required autocomplete="off" /></label>
+        <CfInput v-model="form.eab_kid" label="EAB key ID" required autocomplete="off" />
+        <CfInput v-model="form.eab_hmac" label="EAB HMAC key" required autocomplete="off" />
       </template>
 
       <template v-if="form.provider === 'cloudflare_origin'">
-        <label>Cloudflare API token
-          <input v-model="form.cf_api_token" type="password" autocomplete="off" placeholder="Paste token" />
-        </label>
+        <CfInput v-model="form.cf_api_token" type="password" label="Cloudflare API token" autocomplete="off" placeholder="Paste token" />
         <p class="tls-muted">Create it in Cloudflare under My Profile, API Tokens, with Zone, SSL and Certificates, Edit. Orbit issues and renews the certificate itself.</p>
         <details>
           <summary class="tls-muted">Or paste the origin certificate yourself</summary>

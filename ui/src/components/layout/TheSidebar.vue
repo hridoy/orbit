@@ -105,15 +105,7 @@
           <!-- Section: SECURITY -->
           <div v-if="!sidebarMini" class="sidebar-section-header">Security</div>
 
-          <router-link to="/firewall" class="sidebar-nav-item" active-class="active">
-            <CfIcon name="security-waf" size="18" />
-            <span v-if="!sidebarMini">Firewall</span>
-          </router-link>
 
-          <router-link to="/tunnels" class="sidebar-nav-item" active-class="active">
-            <CfIcon name="cloudflare-zero-trust" size="18" />
-            <span v-if="!sidebarMini">SSH & Tunnels</span>
-          </router-link>
 
           <!-- Section: SYSTEM -->
           <div v-if="!sidebarMini" class="sidebar-section-header">System</div>
@@ -128,10 +120,6 @@
             <span v-if="!sidebarMini">Users</span>
           </router-link>
 
-          <router-link to="/api-keys" class="sidebar-nav-item" active-class="active">
-            <CfIcon name="cis-key-1" size="18" />
-            <span v-if="!sidebarMini">API Keys</span>
-          </router-link>
 
           <router-link to="/integrations" class="sidebar-nav-item" active-class="active">
             <CfIcon name="cis-settings-slider-hor" size="18" />
@@ -161,10 +149,6 @@
           </router-link>
 
           <!-- DNS Records -->
-          <router-link to="/dns" class="sidebar-nav-item" active-class="active">
-            <CfIcon name="reliability-dns" size="18" />
-            <span>DNS Records</span>
-          </router-link>
 
           <!-- SSL/TLS -->
           <router-link to="/ssl" class="sidebar-nav-item" active-class="active">
@@ -173,28 +157,12 @@
           </router-link>
 
           <!-- Caching -->
-          <router-link to="/caching" class="sidebar-nav-item" active-class="active">
-            <CfIcon name="cis-speed-high" size="18" />
-            <span>Caching</span>
-          </router-link>
 
           <!-- Rules -->
-          <router-link to="/rules" class="sidebar-nav-item" active-class="active">
-            <CfIcon name="cis-settings-slider-hor" size="18" />
-            <span>Transform Rules</span>
-          </router-link>
 
           <!-- Network -->
-          <router-link to="/network" class="sidebar-nav-item" active-class="active">
-            <CfIcon name="cis-agent-network" size="18" />
-            <span>Network</span>
-          </router-link>
 
           <!-- WAF -->
-          <router-link to="/waf" class="sidebar-nav-item" active-class="active">
-            <CfIcon name="security-waf" size="18" />
-            <span>Security & WAF</span>
-          </router-link>
         </div>
 
       </div>

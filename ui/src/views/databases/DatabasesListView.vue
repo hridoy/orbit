@@ -20,16 +20,8 @@
 
     <!-- Create form -->
     <form v-if="showCreate" class="db-card db-form" @submit.prevent="create">
-      <label>
-        Name
-        <input v-model="form.name" required maxlength="63" placeholder="my-app-db" />
-      </label>
-      <label>
-        Engine
-        <select v-model="form.engine" @change="pickEngine">
-          <option v-for="e in engines" :key="e.engine" :value="e.engine">{{ e.name }}</option>
-        </select>
-      </label>
+      <CfInput v-model="form.name" label="Name" required maxlength="63" placeholder="my-app-db" />
+      <CfSelect v-model="form.engine" label="Engine" :options="engineOptions" @change="pickEngine" />
       <label>
         Version
         <select v-model="form.version" :disabled="!currentVersions.length">
@@ -44,27 +36,15 @@
           </button>
         </span>
       </label>
-      <label>
-        Username
-        <input v-model="form.username" maxlength="32" autocomplete="off"
-               placeholder="Leave empty to generate one" />
-      </label>
-      <label>
-        Password
-        <span class="db-pass">
-          <input v-model="form.password" :type="showPass ? 'text' : 'password'" maxlength="128" autocomplete="new-password"
-                 placeholder="Leave empty to generate one" />
+      <CfInput v-model="form.username" label="Username" maxlength="32" autocomplete="off" placeholder="Leave empty to generate one" />
+      <CfInput v-model="form.password" label="Password" :type="showPass ? 'text' : 'password'" maxlength="128" autocomplete="new-password" placeholder="Leave empty to generate one">
+        <template #suffix>
           <button type="button" class="db-eye" :aria-label="showPass ? 'Hide password' : 'Show password'" @click="showPass = !showPass">
             {{ showPass ? 'Hide' : 'Show' }}
           </button>
-        </span>
-      </label>
-      <label>
-        Size
-        <select v-model="form.ram_profile">
-          <option v-for="p in profiles" :key="p.value" :value="p.value">{{ p.label }}</option>
-        </select>
-      </label>
+        </template>
+      </CfInput>
+      <CfSelect v-model="form.ram_profile" label="Size" :options="profiles" />
       <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy || !selectedInstalled">
         {{ busy ? 'Creating…' : 'Create database' }}
       </button>
@@ -121,6 +101,7 @@ const profiles = [
   { value: 'unlimited', label: 'Unlimited (no cap)' },
 ]
 const form = ref({ name: '', engine: '', version: '', username: '', password: '', ram_profile: 'micro' })
+const engineOptions = computed(() => engines.value.map((e) => ({ value: e.engine, label: e.name })))
 const currentVersions = computed(() => engines.value.find((e) => e.engine === form.value.engine)?.versions || [])
 const selectedVersion = computed(() => currentVersions.value.find((v) => v.version === form.value.version) || null)
 const selectedInstalled = computed(() => !!selectedVersion.value && selectedVersion.value.status === 'installed')

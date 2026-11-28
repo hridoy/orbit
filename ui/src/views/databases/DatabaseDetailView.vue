@@ -59,17 +59,17 @@
         </template>
 
         <form v-else class="db-port-form" @submit.prevent="setExternal(true)">
-          <label>
-            Public port
-            <select v-model="portChoice">
-              <option v-for="p in access?.suggested_ports || []" :key="p" :value="String(p)">{{ p }} (free)</option>
-              <option value="custom">Custom port…</option>
-            </select>
-          </label>
-          <label v-if="portChoice === 'custom'">
-            Port number (1024 to 65535)
-            <input v-model.number="customPort" type="number" min="1024" max="65535" required />
-          </label>
+          <CfSelect v-model="portChoice" label="Public port" :options="portOptions" />
+          <CfInput
+            v-if="portChoice === 'custom'"
+            :model-value="customPort ?? ''"
+            label="Port number (1024 to 65535)"
+            type="number"
+            min="1024"
+            max="65535"
+            required
+            @update:model-value="customPort = $event === '' ? null : Number($event)"
+          />
           <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy || (portChoice === 'custom' && !customPort)">
             {{ busy ? 'Opening…' : 'Open external port' }}
           </button>
@@ -104,6 +104,10 @@ const notice = ref('')
 const access = ref(null)
 const portChoice = ref('')
 const customPort = ref(null)
+const portOptions = computed(() => [
+  ...(access.value?.suggested_ports || []).map((p) => ({ value: String(p), label: `${p} (free)` })),
+  { value: 'custom', label: 'Custom port…' },
+])
 
 const load = async () => {
   try {

@@ -54,27 +54,8 @@ const inputRef = ref(null)
 
 const allItems = [
   { icon: '🏠', title: 'Account Home', path: '/', badge: 'Overview' },
-  { icon: '🌐', title: 'Zone Overview (northlab.dev)', path: '/zones/northlab.dev', badge: 'Zone' },
-  { icon: '🌐', title: 'DNS Records & Anycast Management', path: '/dns', badge: 'DNS' },
-  { icon: '⚡', title: 'Workers & Pages Overview', path: '/workers', badge: 'Compute' },
-  { icon: '⚡', title: 'Worker: code-collection', path: '/workers/code-collection', badge: 'Production' },
-  { icon: '🤖', title: 'Workers AI & AI Gateway', path: '/ai', badge: 'Llama 3.3' },
-  { icon: '🗄️', title: 'D1 SQL Databases', path: '/d1', badge: 'SQLite' },
-  { icon: '🗄️', title: 'D1: code_collection Console', path: '/d1/code_collection', badge: 'SQL' },
-  { icon: '📦', title: 'R2 Object Storage', path: '/r2', badge: 'Zero Egress' },
-  { icon: '📦', title: 'R2: code-collection Bucket', path: '/r2/code-collection', badge: 'Files' },
-  { icon: '🔑', title: 'Workers KV Namespaces', path: '/kv', badge: 'Key-Value' },
   { icon: '🛡️', title: 'SSL/TLS Certificates', path: '/ssl', badge: 'Strict' },
-  { icon: '🛡️', title: 'WAF & Security Rules', path: '/waf', badge: 'Firewall' },
-  { icon: '🛡️', title: 'Turnstile CAPTCHA', path: '/turnstile', badge: 'Privacy' },
-  { icon: '⚡', title: 'Caching & Optimization', path: '/caching', badge: 'CDN' },
-  { icon: '🌐', title: 'Edge Network Protocols', path: '/network', badge: 'HTTP/3' },
-  { icon: '👥', title: 'Members & RBAC', path: '/team', badge: '5 Members' },
-  { icon: '💳', title: 'Billing & Subscriptions', path: '/billing', badge: 'Invoices' },
-  { icon: '🔑', title: 'API Tokens & Keys', path: '/tokens', badge: 'Credentials' },
-  { icon: '📜', title: 'Audit Logs Stream', path: '/audit-logs', badge: 'Security' },
   { icon: '⚙️', title: 'Profile & Preferences', path: '/settings', badge: 'Account' },
-  { icon: '🎨', title: 'UI Components Kit', path: '/components', badge: 'Showcase' }
 ]
 
 const filteredItems = computed(() => {

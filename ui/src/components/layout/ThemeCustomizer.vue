@@ -87,10 +87,6 @@
         <div>
           <div class="cf-customizer-section-title">Auth & System Pages</div>
           <div style="display: flex; flex-direction: column; gap: 0.35rem;">
-            <router-link to="/login" class="kumo-nav-sub-item" @click="toggleCustomizer(false)"><span>🔐 Sign In / Login</span> ↗</router-link>
-            <router-link to="/register" class="kumo-nav-sub-item" @click="toggleCustomizer(false)"><span>📝 Sign Up / Register</span> ↗</router-link>
-            <router-link to="/2fa" class="kumo-nav-sub-item" @click="toggleCustomizer(false)"><span>🛡️ Two-Factor Auth (2FA)</span> ↗</router-link>
-            <router-link to="/forgot-password" class="kumo-nav-sub-item" @click="toggleCustomizer(false)"><span>🔑 Forgot Password</span> ↗</router-link>
             <router-link to="/404" class="kumo-nav-sub-item" @click="toggleCustomizer(false)"><span>⚠️ 404 Not Found</span> ↗</router-link>
             <router-link to="/500" class="kumo-nav-sub-item" @click="toggleCustomizer(false)"><span>💥 500 Server Error</span> ↗</router-link>
             <router-link to="/maintenance" class="kumo-nav-sub-item" @click="toggleCustomizer(false)"><span>🚧 Maintenance Mode</span> ↗</router-link>

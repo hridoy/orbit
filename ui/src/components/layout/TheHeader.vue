@@ -299,9 +299,9 @@
           <div class="cf-popover-divider"></div>
 
           <!-- Log out in Real Cloudflare Red -->
-          <router-link to="/auth/login" class="cf-menu-item logout-item" @click="userMenuOpen = false">
+          <button type="button" class="cf-menu-item logout-item" @click="logout">
             <span style="color: #ef4444; font-weight: 500;">Log out</span>
-          </router-link>
+          </button>
         </div>
       </div>
     </div>
@@ -358,6 +358,12 @@ const { theme, toggleTheme, toggleMobileSidebar } = useTheme()
 const isStarred = ref(false)
 const zoneDropdownOpen = ref(false)
 const userMenuOpen = ref(false)
+
+const logout = () => {
+  userMenuOpen.value = false
+  try { localStorage.removeItem('orbit_token') } catch (e) {}
+  window.location.reload()
+}
 const askAiDrawerOpen = ref(false)
 const activeSubmenu = ref(null)
 

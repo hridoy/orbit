@@ -56,17 +56,23 @@
           <textarea v-model="drafts[item.provider].secret" class="int-textarea" rows="7" autocomplete="off" spellcheck="false" required
                     :placeholder="item.configured ? 'Paste a new config to replace it' : '[gdrive]\ntype = drive\ntoken = {...}'"></textarea>
         </label>
-        <label v-else>
-          {{ item.secret_label }}
-          <input v-model="drafts[item.provider].secret" type="password" autocomplete="off" required
-                 :placeholder="item.configured ? 'Enter a new value to replace it' : 'Paste here'" />
-        </label>
-        <label v-if="item.extra_label">
-          {{ item.extra_label }}
-          <input v-model="drafts[item.provider].extra" autocomplete="off"
-                 :placeholder="item.provider === 'cloudbackup' ? 'gdrive:orbit-backups' : ''"
-                 :required="item.provider === 'zerossl' || item.provider === 'cloudbackup'" />
-        </label>
+        <CfInput
+          v-else
+          v-model="drafts[item.provider].secret"
+          type="password"
+          :label="item.secret_label"
+          autocomplete="off"
+          required
+          :placeholder="item.configured ? 'Enter a new value to replace it' : 'Paste here'"
+        />
+        <CfInput
+          v-if="item.extra_label"
+          v-model="drafts[item.provider].extra"
+          :label="item.extra_label"
+          autocomplete="off"
+          :placeholder="item.provider === 'cloudbackup' ? 'gdrive:orbit-backups' : ''"
+          :required="item.provider === 'zerossl' || item.provider === 'cloudbackup'"
+        />
         <div class="int-actions">
           <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy">
             {{ item.configured ? 'Replace' : 'Save' }}
