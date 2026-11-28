@@ -123,6 +123,11 @@ UNIT
 systemctl daemon-reload
 systemctl enable --now orbit-backup.timer >/dev/null 2>&1 || true
 
+log "installing rclone for off-host backups (Google Drive, Dropbox, OneDrive, S3)"
+if ! command -v rclone >/dev/null; then
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rclone >/dev/null || log "rclone install failed; cloud backups unavailable"
+fi
+
 log "installing fail2ban for SSH brute-force protection"
 if ! command -v fail2ban-client >/dev/null; then
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq fail2ban >/dev/null || log "fail2ban install failed; continuing"

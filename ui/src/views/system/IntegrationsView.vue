@@ -14,6 +14,27 @@
 
     <div v-if="loading" class="int-muted">Loading…</div>
 
+    <div class="int-card">
+      <div class="int-head">
+        <strong class="int-name">Backup status</strong>
+        <span :class="['int-status', backup.cloud?.configured ? 'on' : 'off']">
+          {{ backup.cloud?.configured ? 'Off-host copy on' : 'Local only' }}
+        </span>
+      </div>
+      <div class="int-saved">
+        <div>Local copies: <code>{{ backup.local_count ?? 0 }}</code> (newest: <code>{{ backup.latest || 'none yet' }}</code>)</div>
+        <div v-if="backup.cloud?.configured">Cloud destination: <code>{{ backup.cloud.remote_path }}</code></div>
+        <div v-else class="int-muted">Add a Cloud backup credential below to copy backups to Google Drive, Dropbox, or OneDrive.</div>
+      </div>
+      <div class="int-actions">
+        <button class="btn-cf btn-cf-primary" type="button" :disabled="backupBusy || backup.running" @click="runBackup">
+          {{ backup.running ? 'Backing up…' : 'Back up now' }}
+        </button>
+      </div>
+      <pre v-if="backup.last_run" class="int-log">{{ backup.last_run.ok ? 'Last run succeeded' : 'Last run failed' }} at {{ fmtDate(backup.last_run.finished_at) }}
+{{ backup.last_run.output }}</pre>
+    </div>
+
     <div v-for="item in items" :key="item.provider" class="int-card">
       <div class="int-head">
         <strong class="int-name">{{ item.name }}</strong>
@@ -30,14 +51,21 @@
       </div>
 
       <form class="int-form" @submit.prevent="save(item)">
-        <label>
+        <label v-if="item.provider === 'cloudbackup'">
+          {{ item.secret_label }}
+          <textarea v-model="drafts[item.provider].secret" class="int-textarea" rows="7" autocomplete="off" spellcheck="false" required
+                    :placeholder="item.configured ? 'Paste a new config to replace it' : '[gdrive]\ntype = drive\ntoken = {...}'"></textarea>
+        </label>
+        <label v-else>
           {{ item.secret_label }}
           <input v-model="drafts[item.provider].secret" type="password" autocomplete="off" required
                  :placeholder="item.configured ? 'Enter a new value to replace it' : 'Paste here'" />
         </label>
         <label v-if="item.extra_label">
           {{ item.extra_label }}
-          <input v-model="drafts[item.provider].extra" autocomplete="off" :required="item.provider === 'zerossl'" />
+          <input v-model="drafts[item.provider].extra" autocomplete="off"
+                 :placeholder="item.provider === 'cloudbackup' ? 'gdrive:orbit-backups' : ''"
+                 :required="item.provider === 'zerossl' || item.provider === 'cloudbackup'" />
         </label>
         <div class="int-actions">
           <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy">
@@ -114,7 +142,39 @@ const remove = async (item) => {
   }
 }
 
-onMounted(load)
+const backup = reactive({ local_count: 0, latest: '', cloud: null, running: false, last_run: null })
+const backupBusy = ref(false)
+
+const loadBackup = async () => {
+  try {
+    Object.assign(backup, await api('/api/v1/backup'))
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+const runBackup = async () => {
+  backupBusy.value = true
+  error.value = ''
+  try {
+    await api('/api/v1/backup/run', { method: 'POST' })
+    notice.value = 'Backup started. It runs in the background.'
+    backup.running = true
+    const poll = setInterval(async () => {
+      await loadBackup()
+      if (!backup.running) clearInterval(poll)
+    }, 3000)
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    backupBusy.value = false
+  }
+}
+
+onMounted(() => {
+  load()
+  loadBackup()
+})
 </script>
 
 <style scoped>
@@ -133,6 +193,8 @@ onMounted(load)
 .int-muted { font-size: 13px; color: #6b7280; margin: 0; overflow-wrap: anywhere; }
 .int-error { color: #b91c1c; font-size: 13px; margin: 0; overflow-wrap: anywhere; }
 .int-notice { color: #166534; font-size: 13px; margin: 0; }
+.int-textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; resize: vertical; padding: 9px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: inherit; width: 100%; box-sizing: border-box; }
+.int-log { font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; margin: 0; max-height: 220px; overflow: auto; }
 @media (max-width: 680px) {
   .int-actions .btn-cf { flex: 1 1 100%; }
 }

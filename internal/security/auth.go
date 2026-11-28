@@ -29,7 +29,7 @@ type UserLookup interface {
 const MemberTokenPrefix = "user:"
 
 // adminOnlyPrefixes are areas that only the admin role may change.
-var adminOnlyPrefixes = []string{"/api/v1/users", "/api/v1/integrations", "/api/v1/server/settings"}
+var adminOnlyPrefixes = []string{"/api/v1/users", "/api/v1/integrations", "/api/v1/server/settings", "/api/v1/backup"}
 
 func NewAuthMiddleware(tokenMgr *TokenManager) *AuthMiddleware {
 	return &AuthMiddleware{tokenMgr: tokenMgr}

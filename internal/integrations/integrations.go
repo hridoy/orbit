@@ -13,14 +13,16 @@ import (
 )
 
 const (
-	Cloudflare = "cloudflare"
-	ZeroSSL    = "zerossl"
+	Cloudflare  = "cloudflare"
+	ZeroSSL     = "zerossl"
+	CloudBackup = "cloudbackup"
 )
 
 // Catalog describes each supported integration for the dashboard.
 var Catalog = map[string]Spec{
-	Cloudflare: {Name: "Cloudflare", Secret: "API token", Used: "Origin certificates for domains behind Cloudflare, with automatic renewal"},
-	ZeroSSL:    {Name: "ZeroSSL", Secret: "EAB HMAC key", Extra: "EAB key ID", Used: "ZeroSSL certificates for domains"},
+	Cloudflare:  {Name: "Cloudflare", Secret: "API token", Used: "Origin certificates for domains behind Cloudflare, with automatic renewal"},
+	ZeroSSL:     {Name: "ZeroSSL", Secret: "EAB HMAC key", Extra: "EAB key ID", Used: "ZeroSSL certificates for domains"},
+	CloudBackup: {Name: "Cloud backup", Secret: "rclone config", Extra: "Remote path", Used: "Copies every control-plane backup off this server to Google Drive, Dropbox, OneDrive, or S3"},
 }
 
 type Spec struct {
@@ -63,7 +65,7 @@ func (m *Manager) List() ([]Status, error) {
 		byName[s.Provider] = s
 	}
 	var out []Status
-	for _, p := range []string{Cloudflare, ZeroSSL} {
+	for _, p := range []string{Cloudflare, ZeroSSL, CloudBackup} {
 		spec := Catalog[p]
 		st := Status{Provider: p, Name: spec.Name, Secret: spec.Secret, Extra: spec.Extra, UsedFor: spec.Used}
 		if s := byName[p]; s != nil {
@@ -89,6 +91,14 @@ func (m *Manager) Set(provider, secret, extra string) error {
 	}
 	if provider == ZeroSSL && strings.TrimSpace(extra) == "" {
 		return errors.New("the EAB key ID is required for ZeroSSL")
+	}
+	if provider == CloudBackup {
+		if !strings.Contains(strings.TrimSpace(extra), ":") {
+			return errors.New("the remote path is required, like gdrive:orbit-backups")
+		}
+		if !strings.Contains(secret, "[") {
+			return errors.New("paste the full rclone config, starting with a [remote] section")
+		}
 	}
 	ct, nonce, err := m.vault.Encrypt([]byte(secret))
 	if err != nil {

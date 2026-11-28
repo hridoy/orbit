@@ -44,6 +44,7 @@ type Server struct {
 	tlsHdr       *TLSHandler
 	settings     *SettingsHandler
 	integrations *IntegrationsHandler
+	backupHdr    *BackupHandler
 	tlsEngine    *tlsengine.Engine
 	databaseHdr  *database.DatabaseHandler
 	dbManager    *database.DatabaseManager
@@ -123,6 +124,7 @@ func NewServer(
 		tlsHdr:       NewTLSHandler(tlsEngine),
 		settings:     settingsHandler,
 		integrations: NewIntegrationsHandler(integrationMgr),
+		backupHdr:    NewBackupHandler(cfg, integrationMgr),
 		tlsEngine:    tlsEngine,
 		databaseHdr:  databaseHandler,
 		dbManager:    dbManager,
@@ -175,6 +177,7 @@ func (s *Server) registerRoutes() {
 	s.tlsHdr.RegisterRoutes(s.mux)
 	s.settings.RegisterRoutes(s.mux)
 	s.integrations.RegisterRoutes(s.mux)
+	s.backupHdr.RegisterRoutes(s.mux)
 
 	// Register agent self-update routes
 	s.platformHdr.RegisterRoutes(s.mux)

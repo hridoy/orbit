@@ -55,6 +55,9 @@ func main() {
 		if err := runBackup(cfg, database, os.Args[2]); err != nil {
 			log.Fatalf("❌ Backup failed: %v", err)
 		}
+		if err := uploadLatest(cfg, database, os.Args[2]); err != nil {
+			log.Fatalf("❌ Cloud upload failed (local backup kept): %v", err)
+		}
 		return
 	}
 
