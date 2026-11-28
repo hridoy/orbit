@@ -2,10 +2,15 @@
   <div class="kumo-empty-card">
     <!-- Cloudflare Dashed Cloud Illustration -->
     <div class="kumo-empty-svg-wrap">
-      <svg class="kumo-empty-cloud-svg" viewBox="0 0 450 210" fill="none">
-        <circle cx="114.45" cy="113.58" r="48.4" stroke="currentColor" stroke-width="3.5" stroke-dasharray="7 6" />
-        <line x1="208.6" y1="207.9" x2="4.2" y2="207.9" stroke="currentColor" stroke-width="3.5" stroke-dasharray="7 6" />
-        <path d="M449.299 208.419C452.346 199.411 453.999 189.761 453.999 179.725C453.999 130.292 413.926 90.2192 364.494 90.2192C315.061 90.2192 274.988 130.292 274.988 179.725C274.988 189.761 276.641 199.411 279.688 208.419" stroke="currentColor" stroke-width="3.5" stroke-dasharray="7 6" />
+      <svg class="kumo-empty-cloud-svg" viewBox="0 0 200 110" fill="none" aria-hidden="true">
+        <path
+          d="M52 90H150C168.778 90 184 74.7777 184 56C184 38.3085 170.491 23.773 153.214 22.1502C146.766 9.57544 133.681 1 118.5 1C99.3895 1 83.4896 14.6064 79.8763 32.6689C76.2225 30.9557 72.1424 30 67.8333 30C51.9091 30 39 42.9091 39 58.8333C39 59.9114 39.0591 60.9756 39.1743 62.0226C26.1859 64.0842 16.25 75.331 16.25 88.9167C16.25 89.2817 16.2572 89.643 16.2715 90H52Z"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-dasharray="6 5"
+        />
       </svg>
     </div>
 

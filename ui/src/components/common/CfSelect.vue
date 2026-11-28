@@ -1,4 +1,6 @@
 <script setup>
+import { computed, useAttrs } from 'vue'
+defineOptions({ inheritAttrs: false })
 const props = defineProps({
   modelValue: {
     type: [String, Number, Boolean],
@@ -54,6 +56,12 @@ function getOptionLabel(opt) {
 function isOptionDisabled(opt) {
   return typeof opt === 'object' && opt !== null ? !!opt.disabled : false
 }
+
+const attrs = useAttrs()
+const selectAttrs = computed(() => {
+  const { class: _c, style: _s, ...rest } = attrs
+  return rest
+})
 </script>
 
 <template>
@@ -67,6 +75,7 @@ function isOptionDisabled(opt) {
         :value="modelValue"
         :disabled="disabled"
         class="cf-select-native"
+        v-bind="selectAttrs"
         @change="onChange"
       >
         <option v-if="placeholder" value="" disabled :selected="!modelValue">
@@ -81,7 +90,9 @@ function isOptionDisabled(opt) {
           </option>
         </template>
       </select>
-      <CfIcon name="chevron-down" size="14" class="cf-select-arrow" />
+      <svg class="cf-select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m6 9 6 6 6-6" />
+      </svg>
     </div>
 
     <p v-if="error" class="cf-select-msg is-error">{{ error }}</p>
@@ -162,6 +173,10 @@ function isOptionDisabled(opt) {
   white-space: nowrap;
   overflow: hidden;
   box-sizing: border-box;
+}
+
+.cf-select-native::-ms-expand {
+  display: none;
 }
 
 .cf-select-arrow {

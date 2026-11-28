@@ -188,14 +188,14 @@ const iconSize = computed(() => {
 
 /* 4. Ghost / Transparent */
 .kumo-btn-ghost {
-  color: #52525b;
+  color: var(--text-color-kumo-subtle, #52525b);
   background: transparent;
   border: 1px solid transparent;
 }
 
 .kumo-btn-ghost:hover:not(:disabled) {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: #18181b;
+  background-color: var(--color-kumo-fill, rgba(0, 0, 0, 0.05));
+  color: var(--text-color-kumo-strong, #18181b);
 }
 
 [data-theme="dark"] .kumo-btn-ghost {

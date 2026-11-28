@@ -19,6 +19,7 @@
         :disabled="disabled"
         :readonly="readonly"
         class="kumo-input-native"
+        v-bind="inputAttrs"
         @input="$emit('update:modelValue', $event.target.value)"
         @focus="$emit('focus', $event)"
         @blur="$emit('blur', $event)"
@@ -45,6 +46,8 @@
 </template>
 
 <script setup>
+import { computed, useAttrs } from 'vue'
+defineOptions({ inheritAttrs: false })
 defineProps({
   modelValue: {
     type: [String, Number],
@@ -97,6 +100,12 @@ defineProps({
 })
 
 defineEmits(['update:modelValue', 'focus', 'blur'])
+
+const attrs = useAttrs()
+const inputAttrs = computed(() => {
+  const { class: _c, style: _s, ...rest } = attrs
+  return rest
+})
 </script>
 
 <style scoped>

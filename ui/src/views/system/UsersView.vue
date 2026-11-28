@@ -28,18 +28,16 @@
     </div>
 
     <form v-if="showInvite" class="mem-card mem-form" @submit.prevent="invite">
-      <label>
-        Username
-        <input v-model="form.username" required minlength="2" maxlength="64" autocomplete="off" placeholder="e.g. ravi" />
-      </label>
-      <label>
-        Role
-        <select v-model="form.role">
-          <option value="admin">Admin: full access, manages members</option>
-          <option value="operator">Operator: deploys apps and databases</option>
-          <option value="viewer">Viewer: read only</option>
-        </select>
-      </label>
+      <CfInput v-model="form.username" label="Username" required minlength="2" maxlength="64" autocomplete="off" placeholder="e.g. ravi" />
+      <CfSelect
+        v-model="form.role"
+        label="Role"
+        :options="[
+          { value: 'admin', label: 'Admin: full access, manages members' },
+          { value: 'operator', label: 'Operator: deploys apps and databases' },
+          { value: 'viewer', label: 'Viewer: read only' },
+        ]"
+      />
       <button class="btn-cf btn-cf-primary" type="submit" :disabled="busy">{{ busy ? 'Adding…' : 'Add member' }}</button>
     </form>
 
@@ -54,11 +52,17 @@
         </div>
         <div class="mem-muted">Added {{ m.created_at }}</div>
         <div class="mem-actions">
-          <select :value="m.role" :disabled="busy" @change="changeRole(m, $event.target.value)" aria-label="Change role">
-            <option value="admin">Admin</option>
-            <option value="operator">Operator</option>
-            <option value="viewer">Viewer</option>
-          </select>
+          <CfSelect
+            :model-value="m.role"
+            :disabled="busy"
+            aria-label="Change role"
+            :options="[
+              { value: 'admin', label: 'Admin' },
+              { value: 'operator', label: 'Operator' },
+              { value: 'viewer', label: 'Viewer' },
+            ]"
+            @update:model-value="changeRole(m, $event)"
+          />
           <button class="btn-cf btn-cf-secondary" :disabled="busy" @click="toggleDisabled(m)">
             {{ m.disabled ? 'Enable' : 'Disable' }}
           </button>
@@ -69,8 +73,8 @@
 
     <form class="mem-card mem-form" @submit.prevent="changeOwnPassword">
       <strong>Change my password</strong>
-      <label>Current password <input v-model="pw.current" type="password" required autocomplete="current-password" /></label>
-      <label>New password (8+ characters) <input v-model="pw.new" type="password" required minlength="8" autocomplete="new-password" /></label>
+      <CfInput v-model="pw.current" type="password" label="Current password" required autocomplete="current-password" />
+      <CfInput v-model="pw.new" type="password" label="New password (8+ characters)" required minlength="8" autocomplete="new-password" />
       <button class="btn-cf btn-cf-secondary" type="submit" :disabled="busy">Change password</button>
     </form>
   </div>
