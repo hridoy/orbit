@@ -21,6 +21,14 @@
       </button>
     </div>
 
+    <!-- Health alerts: disk, memory, certificates, backups -->
+    <div v-if="alerts.length" class="cf-ov-alerts" role="alert">
+      <div v-for="a in alerts" :key="a.title + a.detail" :class="['cf-ov-alert', a.level]">
+        <strong>{{ a.title }}</strong>
+        <span>{{ a.detail }}</span>
+      </div>
+    </div>
+
     <!-- 2. 3-Column Borderless Quick Directory (Domains | Apps | Databases) -->
     <div class="cf-ov-dir-grid">
       <!-- Column 1: Domains -->
@@ -208,9 +216,22 @@ async function loadTelemetry() {
   } catch {}
 }
 
+const alerts = reactive([])
+
+async function loadAlerts() {
+  try {
+    const res = await apiFetch('/api/v1/alerts')
+    if (res.ok) {
+      const list = await res.json()
+      alerts.splice(0, alerts.length, ...list)
+    }
+  } catch {}
+}
+
 function refreshAll() {
   loadServer()
   loadTelemetry()
+  loadAlerts()
 }
 
 function openCommandPalette() {
@@ -234,6 +255,10 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <style scoped>
+.cf-ov-alerts { display: flex; flex-direction: column; gap: 0.5rem; }
+.cf-ov-alert { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; padding: 0.6rem 0.8rem; border-radius: 8px; font-size: 13px; overflow-wrap: anywhere; }
+.cf-ov-alert.warning { background: #fef9c3; color: #713f12; }
+.cf-ov-alert.critical { background: #fee2e2; color: #7f1d1d; }
 .cf-overview-page {
   display: flex;
   flex-direction: column;

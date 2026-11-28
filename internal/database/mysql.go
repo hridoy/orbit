@@ -87,6 +87,11 @@ func (e *MySQLEngine) Provision(
 	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		return fmt.Errorf("failed to write my.cnf: %w", err)
 	}
+	if adminUser != "" && adminPassword != "" {
+		if err := writeMySQLInitFile(confDir, adminUser, adminPassword); err != nil {
+			return fmt.Errorf("failed to write admin bootstrap: %w", err)
+		}
+	}
 
 	// Initialize data directory if host binary is present and data dir is empty
 	entries, _ := os.ReadDir(dataDir)
@@ -126,7 +131,8 @@ func (e *MySQLEngine) Start(
 	}
 
 	confPath := filepath.Join(baseDir, "conf", "my.cnf")
-	cmd := exec.CommandContext(ctx, bin, fmt.Sprintf("--defaults-file=%s", confPath))
+	args := append([]string{fmt.Sprintf("--defaults-file=%s", confPath)}, mysqlInitArgs(filepath.Join(baseDir, "conf"))...)
+	cmd := exec.CommandContext(ctx, bin, args...)
 
 	cmd.Stdout = rb
 	cmd.Stderr = rb

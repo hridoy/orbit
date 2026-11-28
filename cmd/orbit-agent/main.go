@@ -19,6 +19,7 @@ import (
 	"orbit/internal/db"
 	"orbit/internal/security"
 	"orbit/internal/server"
+	"orbit/internal/sysinfo"
 	"orbit/internal/update"
 )
 
@@ -130,14 +131,18 @@ func main() {
 	// 5. Register / Heartbeat local node record
 	hostname, _ := os.Hostname()
 	nodeStore := db.NewNodeStore(database)
+	publicIP := sysinfo.PrimaryIP()
+	if publicIP == "" {
+		publicIP = "127.0.0.1"
+	}
 	err = nodeStore.UpsertNode(&db.Node{
 		NodeID:          cfg.NodeID,
 		Hostname:        hostname,
-		PublicIP:        "127.0.0.1",
+		PublicIP:        publicIP,
 		Role:            "standalone",
 		CPUCores:        runtime.NumCPU(),
-		RAMTotalBytes:   0, // Telemetry collector will populate in Phase 5
-		DiskTotalBytes:  0,
+		RAMTotalBytes:   sysinfo.MemoryTotal(),
+		DiskTotalBytes:  sysinfo.DiskTotal(cfg.RootPath),
 		AgentVersion:    buildinfo.Version,
 		Status:          "online",
 		LastHeartbeatAt: time.Now().UTC(),
