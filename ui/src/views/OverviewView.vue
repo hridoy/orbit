@@ -169,9 +169,9 @@
           delta-type="up"
         />
         <CfStatCard
-          label="Memory Used"
-          :value="formatBytes(telemetry.ram_used_bytes)"
-          :delta="`of ${formatBytes(telemetry.ram_total_bytes)}`"
+          label="Orbit Memory"
+          :value="formatBytes(telemetry.orbit_rss_bytes)"
+          :delta="`Server: ${formatBytes(telemetry.ram_used_bytes)} of ${formatBytes(telemetry.ram_total_bytes)}`"
           delta-type="neutral"
         />
         <CfStatCard
@@ -199,7 +199,8 @@ import { apiFetch } from '@/api/client.js'
 const telemetry = reactive({
   cpu_usage_pct: 0,
   ram_used_bytes: 0,
-  ram_total_bytes: 0
+  ram_total_bytes: 0,
+  orbit_rss_bytes: 0
 })
 
 const runningAppsCount = computed(() => server.apps.filter(a => a.status === 'running').length)
@@ -212,6 +213,7 @@ async function loadTelemetry() {
       telemetry.cpu_usage_pct = Number(m.cpu_usage_pct || 0)
       telemetry.ram_used_bytes = Number(m.ram_used_bytes || 0)
       telemetry.ram_total_bytes = Number(m.ram_total_bytes || 0)
+      telemetry.orbit_rss_bytes = Number(m.orbit_rss_bytes || 0)
     }
   } catch {}
 }

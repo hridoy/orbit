@@ -9,23 +9,27 @@ import (
 	"time"
 
 	"orbit/internal/proxy"
+	"orbit/internal/sysinfo"
 )
 
 type HostMetrics struct {
-	Timestamp      time.Time `json:"timestamp"`
-	CPUUsagePct    float64   `json:"cpu_usage_pct"`
-	RAMTotalBytes  uint64    `json:"ram_total_bytes"`
-	RAMUsedBytes   uint64    `json:"ram_used_bytes"`
-	RAMFreeBytes   uint64    `json:"ram_free_bytes"`
-	AgentAllocRAM  uint64    `json:"agent_alloc_ram"`
-	AgentNumGC     uint32    `json:"agent_num_gc"`
-	NumGoroutines  int       `json:"num_goroutines"`
-	BandwidthInSec uint64    `json:"bandwidth_in_sec"`
-	BandwidthOutSec uint64   `json:"bandwidth_out_sec"`
+	Timestamp     time.Time `json:"timestamp"`
+	CPUUsagePct   float64   `json:"cpu_usage_pct"`
+	RAMTotalBytes uint64    `json:"ram_total_bytes"`
+	RAMUsedBytes  uint64    `json:"ram_used_bytes"`
+	RAMFreeBytes  uint64    `json:"ram_free_bytes"`
+	// OrbitRSSBytes is the memory used by the agent and everything it started (apps, databases).
+	// RAMUsedBytes is the whole server, which includes other software on the same machine.
+	OrbitRSSBytes   uint64 `json:"orbit_rss_bytes"`
+	AgentAllocRAM   uint64 `json:"agent_alloc_ram"`
+	AgentNumGC      uint32 `json:"agent_num_gc"`
+	NumGoroutines   int    `json:"num_goroutines"`
+	BandwidthInSec  uint64 `json:"bandwidth_in_sec"`
+	BandwidthOutSec uint64 `json:"bandwidth_out_sec"`
 }
 
 type TelemetryCollector struct {
-	meter       *proxy.BandwidthMeter
+	meter        *proxy.BandwidthMeter
 	lastCPUTotal uint64
 	lastCPUIdle  uint64
 }
@@ -49,12 +53,19 @@ func (c *TelemetryCollector) Collect() HostMetrics {
 
 	cpuPct := c.readLinuxCPU()
 
+	orbitRSS := sysinfo.ProcessTreeRSS(os.Getpid())
+	if orbitRSS == 0 {
+		// Non-Linux: fall back to what the Go runtime has allocated.
+		orbitRSS = m.Sys
+	}
+
 	return HostMetrics{
 		Timestamp:      time.Now().UTC(),
 		CPUUsagePct:    cpuPct,
 		RAMTotalBytes:  ramTotal,
 		RAMUsedBytes:   ramUsed,
 		RAMFreeBytes:   ramFree,
+		OrbitRSSBytes:  orbitRSS,
 		AgentAllocRAM:  m.Alloc,
 		AgentNumGC:     m.NumGC,
 		NumGoroutines:  runtime.NumGoroutine(),
