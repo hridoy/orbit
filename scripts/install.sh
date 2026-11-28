@@ -99,6 +99,41 @@ for _ in $(seq 1 20); do
 done
 curl -fsS -o /dev/null http://127.0.0.1:8787/healthz || die "agent did not become healthy; see: journalctl -u orbit-agent"
 
+log "scheduling daily state backup (keeps the 14 newest)"
+install -d -m 0700 "$ROOT/backups"
+cat > /etc/systemd/system/orbit-backup.service <<UNIT
+[Unit]
+Description=Orbit control-plane state backup
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'umask 077 && ${ROOT}/bin/orbit-agent backup ${ROOT}/backups && ls -1dt ${ROOT}/backups/orbit-backup-* | tail -n +15 | xargs -r rm -rf'
+UNIT
+cat > /etc/systemd/system/orbit-backup.timer <<UNIT
+[Unit]
+Description=Daily Orbit state backup
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now orbit-backup.timer >/dev/null 2>&1 || true
+
+log "installing fail2ban for SSH brute-force protection"
+if ! command -v fail2ban-client >/dev/null; then
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq fail2ban >/dev/null || log "fail2ban install failed; continuing"
+fi
+if [ ! -f /etc/fail2ban/jail.d/orbit.local ] && command -v fail2ban-client >/dev/null; then
+  install -d /etc/fail2ban/jail.d
+  printf '[sshd]\nenabled = true\nmaxretry = 5\nfindtime = 10m\nbantime = 1h\n' > /etc/fail2ban/jail.d/orbit.local
+  systemctl enable --now fail2ban >/dev/null 2>&1 || true
+  systemctl restart fail2ban >/dev/null 2>&1 || true
+fi
+
 log "configuring firewall"
 if command -v ufw >/dev/null; then
   ufw allow 22/tcp >/dev/null          # never lock out SSH
