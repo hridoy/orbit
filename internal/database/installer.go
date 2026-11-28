@@ -146,6 +146,23 @@ func aptInstall(pkg string, logf func(string, ...any)) error {
 	return nil
 }
 
+// downloadResumable fetches url into path, resuming a partial file after stalls or dropped
+// HTTP/2 streams. Vendor archives are hundreds of MB, and a single stalled connection used to
+// fail the whole install. curl gives up on a connection that drops below 10 KB/s for a minute.
+func downloadResumable(url, path string) error {
+	var err error
+	for attempt := 1; attempt <= 6; attempt++ {
+		err = run(30*time.Minute, "curl", "-fL", "--http1.1", "-C", "-",
+			"--speed-limit", "10000", "--speed-time", "60",
+			"--retry", "2", "--retry-delay", "3", "-o", path, url)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(time.Duration(attempt*5) * time.Second)
+	}
+	return err
+}
+
 // installTarball downloads an official archive, checks its MD5 when the vendor publishes one,
 // and unpacks it into engines/<engine>/<version>.
 func installTarball(e CatalogEntry, logf func(string, ...any)) error {
@@ -162,7 +179,7 @@ func installTarball(e CatalogEntry, logf func(string, ...any)) error {
 	defer os.Remove(archive)
 
 	logf("downloading %s", e.URL)
-	if err := run(10*time.Minute, "curl", "-fsSL", "--retry", "3", "--retry-delay", "5", "-o", archive, e.URL); err != nil {
+	if err := downloadResumable(e.URL, archive); err != nil {
 		return fmt.Errorf("download failed: %w", err)
 	}
 	if e.MD5URL != "" || strings.Contains(e.URL, "cdn.mysql.com") {
@@ -219,7 +236,7 @@ func installSource(e CatalogEntry, logf func(string, ...any)) error {
 
 	archive := filepath.Join(build, "src.tar.gz")
 	logf("downloading %s", e.URL)
-	if err := run(10*time.Minute, "curl", "-fsSL", "--retry", "3", "-o", archive, e.URL); err != nil {
+	if err := downloadResumable(e.URL, archive); err != nil {
 		return fmt.Errorf("download failed: %w", err)
 	}
 	logf("unpacking source")
