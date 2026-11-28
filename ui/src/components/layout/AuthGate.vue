@@ -25,13 +25,27 @@
     <!-- Right card pane: sign in or first-run admin setup -->
     <div class="auth-card-pane">
       <form @submit.prevent="submit">
-        <h1>{{ setupRequired ? 'Create your admin login' : 'Sign in' }}</h1>
-        <p>
+        <h1>{{ challenge ? 'Enter your code' : (setupRequired ? 'Create your admin login' : 'Sign in') }}</h1>
+        <p v-if="challenge">Enter the 6-digit code from your authenticator app.</p>
+        <p v-else>
           {{ setupRequired
             ? 'First run. Choose a username and password for this dashboard.'
             : 'Enter the username and password you set during setup.' }}
         </p>
 
+        <template v-if="challenge">
+          <div class="cf-form-group">
+            <label for="auth-code">Authentication code</label>
+            <input id="auth-code" v-model="code" class="cf-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required autofocus />
+          </div>
+          <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
+          <button type="submit" class="btn-cf btn-cf-primary auth-submit" :disabled="busy">
+            {{ busy ? 'Please wait…' : 'Verify' }}
+          </button>
+          <button type="button" class="btn-cf btn-cf-secondary auth-submit" :disabled="busy" @click="backToPassword">Back</button>
+        </template>
+
+        <template v-else>
         <div class="cf-form-group">
           <label for="auth-username">Username</label>
           <input id="auth-username" v-model="username" class="cf-input" type="text" autocomplete="username" maxlength="64" required autofocus />
@@ -53,6 +67,7 @@
         <button type="submit" class="btn-cf btn-cf-primary auth-submit" :disabled="busy">
           {{ busy ? 'Please wait…' : (setupRequired ? 'Create account' : 'Sign in') }}
         </button>
+        </template>
       </form>
     </div>
   </div>
@@ -71,9 +86,18 @@ const password = ref('')
 const confirm = ref('')
 const error = ref('')
 const busy = ref(false)
+const challenge = ref('')
+const code = ref('')
+
+const backToPassword = () => {
+  challenge.value = ''
+  code.value = ''
+  error.value = ''
+}
 
 const submit = async () => {
   error.value = ''
+  if (challenge.value) return verifyCode()
   if (props.setupRequired && password.value !== confirm.value) {
     error.value = 'Passwords do not match.'
     return
@@ -93,6 +117,36 @@ const submit = async () => {
     }
     password.value = ''
     confirm.value = ''
+    if (body.two_factor_required) {
+      // The password was right. Ask for the authenticator code next.
+      challenge.value = body.challenge
+      return
+    }
+    emit('authed', body.token)
+  } catch (e) {
+    error.value = 'Could not reach the agent. Check the SSH tunnel.'
+  } finally {
+    busy.value = false
+  }
+}
+
+const verifyCode = async () => {
+  busy.value = true
+  try {
+    const res = await fetch('/api/v1/auth/login/2fa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challenge: challenge.value, code: code.value.trim() }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      error.value = body.error || `Request failed (HTTP ${res.status})`
+      // An expired or used-up sign-in step must start over.
+      if (res.status === 401 && /expired|too many|log in again/i.test(error.value)) backToPassword()
+      return
+    }
+    challenge.value = ''
+    code.value = ''
     emit('authed', body.token)
   } catch (e) {
     error.value = 'Could not reach the agent. Check the SSH tunnel.'

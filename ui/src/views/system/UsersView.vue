@@ -66,10 +66,13 @@
           <button class="btn-cf btn-cf-secondary" :disabled="busy" @click="toggleDisabled(m)">
             {{ m.disabled ? 'Enable' : 'Disable' }}
           </button>
+          <button class="btn-cf btn-cf-secondary" :disabled="busy" @click="resetTwoFactor(m)">Reset 2FA</button>
           <button class="btn-cf btn-cf-secondary" :disabled="busy" @click="remove(m)">Remove</button>
         </div>
       </div>
     </div>
+
+    <TwoFactorSetup />
 
     <form class="mem-card mem-form" @submit.prevent="changeOwnPassword">
       <strong>Change my password</strong>
@@ -83,6 +86,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { api } from '@/composables/api.js'
+import TwoFactorSetup from '@/components/layout/TwoFactorSetup.vue'
 
 const members = ref([])
 const loading = ref(true)
@@ -141,6 +145,14 @@ const remove = (m) => {
   run(
     () => api(`/api/v1/users/${encodeURIComponent(m.username)}`, { method: 'DELETE' }),
     `${m.username} was removed.`,
+  )
+}
+
+const resetTwoFactor = (m) => {
+  if (!window.confirm(`Turn off two-factor for ${m.username}? They can sign in with only their password until they set it up again.`)) return
+  run(
+    () => api(`/api/v1/users/${encodeURIComponent(m.username)}/2fa`, { method: 'DELETE' }),
+    `Two-factor for ${m.username} was turned off.`,
   )
 }
 

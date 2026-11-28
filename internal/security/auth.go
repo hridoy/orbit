@@ -82,7 +82,7 @@ func (a *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 		if p == "/healthz" || p == "/" || p == "/index.html" || p == "/icon.svg" ||
 			p == "/manifest.webmanifest" || p == "/sw.js" ||
 			strings.HasPrefix(p, "/assets/") || strings.HasPrefix(p, "/s3/") ||
-			p == "/api/v1/auth/status" || p == "/api/v1/auth/setup" || p == "/api/v1/auth/login" {
+			p == "/api/v1/auth/status" || p == "/api/v1/auth/setup" || p == "/api/v1/auth/login" || p == "/api/v1/auth/login/2fa" {
 			next.ServeHTTP(w, r)
 			return
 		}

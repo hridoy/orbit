@@ -29,7 +29,11 @@ func newAuthTestHandler(t *testing.T) (*AuthHandler, *security.TokenManager) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewAuthHandler(db.NewDashboardUserStore(conn), tm), tm
+	vault, err := security.NewVault(seed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewAuthHandler(db.NewDashboardUserStore(conn), db.NewTOTPStore(conn), vault, tm), tm
 }
 
 func post(h http.HandlerFunc, path string, body any, remote string) *httptest.ResponseRecorder {

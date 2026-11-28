@@ -25,20 +25,31 @@ const (
 // signed bearer token that names the member, so role and status are checked on each request.
 type AuthHandler struct {
 	users    *db.DashboardUserStore
+	totp     *db.TOTPStore
+	vault    *security.Vault
 	tokenMgr *security.TokenManager
 
-	mu       sync.Mutex
-	failures map[string][]time.Time // client IP -> recent failed logins
+	mu         sync.Mutex
+	failures   map[string][]time.Time // client IP -> recent failed logins
+	challenges map[string]*loginChallenge
 }
 
-func NewAuthHandler(users *db.DashboardUserStore, tokenMgr *security.TokenManager) *AuthHandler {
-	return &AuthHandler{users: users, tokenMgr: tokenMgr, failures: map[string][]time.Time{}}
+func NewAuthHandler(users *db.DashboardUserStore, totp *db.TOTPStore, vault *security.Vault, tokenMgr *security.TokenManager) *AuthHandler {
+	return &AuthHandler{
+		users:      users,
+		totp:       totp,
+		vault:      vault,
+		tokenMgr:   tokenMgr,
+		failures:   map[string][]time.Time{},
+		challenges: map[string]*loginChallenge{},
+	}
 }
 
 func (h *AuthHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/auth/status", h.handleStatus)
 	mux.HandleFunc("POST /api/v1/auth/setup", h.handleSetup)
 	mux.HandleFunc("POST /api/v1/auth/login", h.handleLogin)
+	h.registerTwoFactorRoutes(mux)
 }
 
 func (h *AuthHandler) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +138,15 @@ func (h *AuthHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	if u.Disabled {
 		writeAuthJSON(w, http.StatusForbidden, map[string]string{"error": "this account is disabled"})
+		return
+	}
+	if rec, err := h.totp.Get(u.Username); err != nil {
+		writeAuthJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	} else if rec != nil && rec.Enabled {
+		// The password is right, but the session is not issued until the second factor is answered.
+		h.clearFailures(ip)
+		h.beginSecondFactor(w, u.Username)
 		return
 	}
 	h.clearFailures(ip)

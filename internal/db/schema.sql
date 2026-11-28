@@ -282,3 +282,14 @@ CREATE TABLE IF NOT EXISTS database_exposures (
     public_port         INTEGER NOT NULL UNIQUE,
     created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Two-factor (TOTP) secrets for dashboard members. The secret is encrypted with the vault.
+-- last_step is the last accepted time step, so one code cannot be used twice.
+CREATE TABLE IF NOT EXISTS dashboard_totp (
+    username            TEXT PRIMARY KEY,
+    secret_ciphertext   TEXT NOT NULL,
+    secret_nonce        TEXT NOT NULL,
+    enabled             INTEGER NOT NULL DEFAULT 0,
+    last_step           INTEGER NOT NULL DEFAULT 0,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

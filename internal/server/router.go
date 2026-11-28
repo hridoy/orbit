@@ -122,7 +122,7 @@ func NewServer(
 		computeHdr:   computeHandler,
 		gitHdr:       gitHandler,
 		platformHdr:  update.NewHandler(cfg.DataDir, buildinfo.Version),
-		authHdr:      NewAuthHandler(userStore, tokenMgr),
+		authHdr:      NewAuthHandler(userStore, db.NewTOTPStore(dbConn), vault, tokenMgr),
 		usersHdr:     NewUsersHandler(userStore),
 		tlsHdr:       NewTLSHandler(tlsEngine),
 		settings:     settingsHandler,
