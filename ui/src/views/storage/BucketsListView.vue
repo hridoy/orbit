@@ -236,33 +236,28 @@
     <CfModal v-model="showCreateIamModal" title="Create Scoped IAM Key" size="sm">
       <div style="display: flex; flex-direction: column; gap: 0.9rem;">
         <CfInput v-model="iamForm.label" label="Key Label" placeholder="e.g. backups-worker" required />
-        <div>
-          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem;">Bucket Scope</label>
-          <select v-model="iamForm.bucket_scope" class="cf-iam-select">
-            <option value="*">All Buckets (*)</option>
-            <option v-for="b in buckets" :key="b.name" :value="b.name">{{ b.name }}</option>
-          </select>
-        </div>
+        <CfSelect
+          v-model="iamForm.bucket_scope"
+          label="Bucket Scope"
+          :options="[{ value: '*', label: 'All Buckets (*)' }, ...buckets.map((b) => ({ value: b.name, label: b.name }))]"
+        />
         <CfInput v-model="iamForm.prefix_scope" label="Prefix Scope (optional)" placeholder="e.g. prod/" />
-        <div>
-          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem;">Permissions</label>
-          <select v-model="iamForm.permissions" class="cf-iam-select">
-            <option value="read">Read Only (GET / HEAD)</option>
-            <option value="read,write">Read + Write (GET / PUT)</option>
-            <option value="read,write,delete">Read + Write + Delete</option>
-            <option value="admin">Full Admin</option>
-          </select>
-        </div>
-        <div>
-          <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem;">Custom AWS IAM JSON Policy (optional)</label>
-          <textarea
-            v-model="iamForm.policy_json"
-            rows="3"
-            class="cf-iam-select"
-            style="font-family: monospace; font-size: 0.78rem;"
-            placeholder='{"Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::assets/*"]}]}'
-          ></textarea>
-        </div>
+        <CfSelect
+          v-model="iamForm.permissions"
+          label="Permissions"
+          :options="[
+            { value: 'read', label: 'Read Only (GET / HEAD)' },
+            { value: 'read,write', label: 'Read + Write (GET / PUT)' },
+            { value: 'read,write,delete', label: 'Read + Write + Delete' },
+            { value: 'admin', label: 'Full Admin' },
+          ]"
+        />
+        <CfTextarea
+          v-model="iamForm.policy_json"
+          label="Custom AWS IAM JSON Policy (optional)"
+          :rows="3"
+          placeholder='{"Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::assets/*"]}]}'
+        />
         <div v-if="createdIamSecret" style="display: flex; flex-direction: column; gap: 0.65rem; padding-top: 0.5rem; border-top: 1px solid #e4e4e7;">
           <CfAlert variant="success" title="IAM Key Created">Copy the Secret Key now — it will not be shown again.</CfAlert>
           <CfCopyField label="Access Key ID" :value="createdIamSecret.access_key" />

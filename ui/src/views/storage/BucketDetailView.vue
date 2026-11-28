@@ -345,13 +345,17 @@
               <div class="cf-toggle-title">Storage Quota</div>
               <div class="cf-toggle-desc">Enforce hard storage limit on S3 PUT requests (0 = Unlimited).</div>
             </div>
-            <select v-model.number="settingsForm.quota_bytes" class="cf-select-input">
-              <option :value="0">Unlimited</option>
-              <option :value="1073741824">1 GB</option>
-              <option :value="10737418240">10 GB</option>
-              <option :value="53687091200">50 GB</option>
-              <option :value="107374182400">100 GB</option>
-            </select>
+            <CfSelect
+              :model-value="settingsForm.quota_bytes"
+              :options="[
+                { value: 0, label: 'Unlimited' },
+                { value: 1073741824, label: '1 GB' },
+                { value: 10737418240, label: '10 GB' },
+                { value: 53687091200, label: '50 GB' },
+                { value: 107374182400, label: '100 GB' },
+              ]"
+              @update:model-value="settingsForm.quota_bytes = Number($event)"
+            />
           </div>
 
           <div class="cf-toggle-row" style="align-items: flex-start;">
@@ -399,12 +403,16 @@
         </div>
         <div style="display: flex; gap: 0.75rem; align-items: center;">
           <label style="font-size: 0.85rem; font-weight: 500;">Expiry:</label>
-          <select v-model.number="presignTTL" class="cf-select-input" @change="generatePresign">
-            <option :value="900">15 Minutes</option>
-            <option :value="3600">1 Hour</option>
-            <option :value="86400">24 Hours</option>
-            <option :value="604800">7 Days</option>
-          </select>
+          <CfSelect
+            :model-value="presignTTL"
+            :options="[
+              { value: 900, label: '15 Minutes' },
+              { value: 3600, label: '1 Hour' },
+              { value: 86400, label: '24 Hours' },
+              { value: 604800, label: '7 Days' },
+            ]"
+            @update:model-value="presignTTL = Number($event); generatePresign()"
+          />
         </div>
         <CfCopyField v-if="presignUrl" label="Signed URL" :value="presignUrl" />
       </div>
